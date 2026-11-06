@@ -361,8 +361,6 @@ export function LearnerPath() {
       ? "inset(12px round 20px)"
       : "inset(20px round 24px)";
 
-    const siteHeader = document.querySelector("header");
-
     const ctx = gsap.context(() => {
       gsap.set(wrapper, {
         clipPath: initialInset,
@@ -502,7 +500,7 @@ export function LearnerPath() {
         },
       });
 
-      // 1. Phase B (0.0 -> 0.20): Fade out top header UI and fixed site navbar
+      // 1. Phase B (0.0 -> 0.20): Fade out top header UI
       if (headerUiRef.current) {
         tl.to(
           headerUiRef.current,
@@ -516,23 +514,10 @@ export function LearnerPath() {
         );
       }
 
-      if (siteHeader) {
-        tl.to(
-          siteHeader,
-          {
-            opacity: 0,
-            pointerEvents: "none",
-            ease: "power1.out",
-            duration: 0.12,
-          },
-          0.04
-        );
-      }
-
       // 2. Phase C (0.20 -> 0.80): Middle scrub duration span
       tl.to({}, { duration: 0.6 }, 0.2);
 
-      // 3. Phase D (0.80 -> 1.00): Fade in header UI and fixed site navbar
+      // 3. Phase D (0.80 -> 1.00): Fade in header UI
       if (headerUiRef.current) {
         tl.to(
           headerUiRef.current,
@@ -543,19 +528,6 @@ export function LearnerPath() {
             duration: 0.16,
           },
           0.84
-        );
-      }
-
-      if (siteHeader) {
-        tl.to(
-          siteHeader,
-          {
-            opacity: 1,
-            pointerEvents: "auto",
-            ease: "power1.in",
-            duration: 0.14,
-          },
-          0.86
         );
       }
 
@@ -579,7 +551,6 @@ export function LearnerPath() {
       ctx.revert();
       const st = ScrollTrigger.getById("journey-video");
       if (st) st.kill(true);
-      if (siteHeader) gsap.set(siteHeader, { opacity: 1, pointerEvents: "auto" });
       if (lenis) {
         lenis.options.wheelMultiplier = 1.0;
       }
@@ -620,7 +591,6 @@ export function LearnerPath() {
       duration: 0.7,
       ease: "power2.inOut",
     });
-    gsap.to("header", { opacity: 0, pointerEvents: "none", duration: 0.3 });
     if (headerUiRef.current) {
       gsap.to(headerUiRef.current, { opacity: 0, duration: 0.3 });
     }
@@ -683,7 +653,6 @@ export function LearnerPath() {
       duration: 0.7,
       ease: "power2.inOut",
     });
-    gsap.to("header", { opacity: 1, pointerEvents: "auto", duration: 0.5 });
     if (headerUiRef.current) {
       gsap.to(headerUiRef.current, { opacity: 1, duration: 0.5 });
     }

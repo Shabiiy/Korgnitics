@@ -13,7 +13,11 @@ import { useSmoothScroll } from "@/components/providers/SmoothScrollProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function Hero() {
+interface HeroProps {
+  isReady?: boolean;
+}
+
+export function Hero({ isReady = false }: HeroProps) {
   const containerRef = useRef<HTMLElement | null>(null);
   const videoCardRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -29,7 +33,25 @@ export function Hero() {
   const uiLayerRef = useRef<HTMLDivElement | null>(null);
 
   const isUiInteractableRef = useRef(false);
+  const isReadyRef = useRef(isReady);
   const { prefersReducedMotion } = useSmoothScroll();
+
+  useEffect(() => {
+    isReadyRef.current = isReady;
+  }, [isReady]);
+
+  // Video starts playing ONLY after the preloader finishes and the user enters the screen
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isReady) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [isReady]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -51,7 +73,7 @@ export function Hero() {
       ([entry]) => {
         if (!video) return;
         if (entry.isIntersecting) {
-          if (video.paused) video.play().catch(() => {});
+          if (isReadyRef.current && video.paused) video.play().catch(() => {});
         } else {
           if (!video.paused) video.pause();
         }
@@ -277,7 +299,6 @@ export function Hero() {
             ref={videoRef}
             src={heroContent.videoSrc}
             poster={heroContent.posterSrc}
-            autoPlay
             muted
             loop
             playsInline

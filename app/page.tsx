@@ -27,7 +27,7 @@ export default function Home() {
       <Navbar />
 
       {/* 1. Hero Section */}
-      <Hero />
+      <Hero isReady={preloaderDone} />
 
       {/* 2. Kognitics Universe */}
       <Universe />

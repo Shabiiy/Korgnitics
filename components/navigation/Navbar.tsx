@@ -84,15 +84,15 @@ export function Navbar() {
 
     handleScroll();
 
+    window.addEventListener("scroll", handleScroll, { passive: true });
     if (lenis) {
       lenis.on("scroll", handleScroll);
-    } else {
-      window.addEventListener("scroll", handleScroll, { passive: true });
     }
 
     return () => {
       if (scrollRafRef.current) {
         cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
       }
       if (lenis) {
         lenis.off("scroll", handleScroll);
@@ -169,14 +169,8 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* 2. Desktop Pill Navigation (Center) - Fades & slides down on scroll, STAYS persistent */}
-          <div
-            className={`hidden lg:flex items-center mx-auto transition-all duration-500 ease-out ${
-              isScrolled
-                ? "opacity-100 translate-y-0 pointer-events-auto"
-                : "opacity-0 -translate-y-4 pointer-events-none"
-            }`}
-          >
+          {/* 2. Desktop Pill Navigation (Center) - Always visible and persistent */}
+          <div className="hidden lg:flex items-center mx-auto opacity-100 translate-y-0 pointer-events-auto">
             <nav className="flex items-center gap-1 bg-black/35 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 shadow-lg">
               {navigationLinks.map((link) => {
                 const isActive = activeItem === link.label;
@@ -185,7 +179,6 @@ export function Navbar() {
                     key={link.label}
                     href={link.href}
                     onClick={(e) => handleNavClick(e, link.href, link.label)}
-                    tabIndex={isScrolled ? 0 : -1}
                     className={`relative px-3.5 py-1.5 text-[13px] font-sans tracking-tight transition-colors duration-200 z-10 ${
                       isActive
                         ? "text-indigo-deep font-medium"
@@ -206,14 +199,8 @@ export function Navbar() {
             </nav>
           </div>
 
-          {/* 3. Right CTA Button & Mobile Menu Toggle */}
-          <div
-            className={`flex items-center gap-3 ml-auto transition-all duration-500 ease-out ${
-              isScrolled
-                ? "opacity-100 translate-y-0 pointer-events-auto"
-                : "opacity-0 -translate-y-4 pointer-events-none"
-            }`}
-          >
+          {/* 3. Right CTA Button & Mobile Menu Toggle - Always visible and persistent */}
+          <div className="flex items-center gap-3 ml-auto opacity-100 translate-y-0 pointer-events-auto">
             {/* Desktop Apply Now Button */}
             <div className="hidden sm:block">
               <MagneticButton
@@ -230,7 +217,6 @@ export function Navbar() {
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              tabIndex={isScrolled ? 0 : -1}
               className={`lg:hidden p-2 rounded-full backdrop-blur-md transition-colors ${
                 isDarkTheme
                   ? "bg-black/35 text-white border border-white/20 hover:bg-black/50"
