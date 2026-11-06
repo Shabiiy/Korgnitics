@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import Image from "next/image";
 import { activitiesContent } from "@/content/activities";
 import { TagChip } from "@/components/ui/TagChip";
-import { Play, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useSmoothScroll } from "@/components/providers/SmoothScrollProvider";
@@ -17,23 +15,11 @@ export function Activities() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const headlineRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const cursorRef = useRef<HTMLDivElement | null>(null);
   const subcardsRef = useRef<HTMLDivElement | null>(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const { prefersReducedMotion } = useSmoothScroll();
 
-  // Custom play cursor directly updating style without React re-render
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current || !cursorRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    cursorRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
-  };
-
-  // Pause video when off screen
+  // Pause video when off screen to conserve resources
   useEffect(() => {
     const video = videoRef.current;
     const container = containerRef.current;
@@ -115,13 +101,9 @@ export function Activities() {
       <div className="flex justify-center w-full">
         <div
           ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={() => setIsModalOpen(true)}
-          className="relative min-h-[500px] sm:min-h-[580px] rounded-kcard overflow-hidden bg-indigo-deep cursor-pointer border border-indigo/40 shadow-2xl flex flex-col justify-between p-6 sm:p-12 transition-all duration-300 mx-auto"
+          className="relative min-h-[500px] sm:min-h-[580px] rounded-kcard overflow-hidden bg-black border border-white/10 shadow-2xl flex flex-col justify-between p-6 sm:p-12 transition-all duration-300 mx-auto select-none"
         >
-          {/* Background Video */}
+          {/* Background Video (Clean natural colors, auto play on loop) */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <video
               ref={videoRef}
@@ -131,60 +113,36 @@ export function Activities() {
               playsInline
               autoPlay
               loop
-              preload="metadata"
+              preload="auto"
               className="w-full h-full object-cover scale-105"
             />
-            {/* Scrim */}
-            <div className="absolute inset-0 bg-gradient-to-t from-indigo-deep/90 via-indigo-deep/50 to-indigo-deep/80" />
-            <div className="absolute inset-0 bg-indigo-deep/40" />
+            {/* Subtle neutral gradient for tag and pill legibility (NO blue/indigo overlay) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/30 pointer-events-none" />
           </div>
-
-          {/* Custom Floating Cursor (follows mouse inside card on desktop) */}
-          {isHovered && !prefersReducedMotion && (
-            <div
-              ref={cursorRef}
-              className="hidden lg:flex pointer-events-none absolute z-30 top-0 left-0 w-16 h-16 rounded-full bg-yellow-golden text-indigo-deep font-sans font-medium text-xs tracking-wider uppercase items-center justify-center shadow-xl will-change-transform"
-            >
-              Play
-            </div>
-          )}
 
           {/* Top Tag & Header */}
           <div className="z-10 flex items-center justify-between">
             <TagChip variant="yellow">{activitiesContent.sectionTag}</TagChip>
           </div>
 
-          {/* Centered Play Button & Headline */}
+          {/* Clean Centered Headline */}
           <div ref={headlineRef} className="z-10 text-center my-auto py-8">
-            <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-white max-w-3xl mx-auto mb-8">
+            <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-white max-w-3xl mx-auto drop-shadow-[0_2px_16px_rgba(0,0,0,0.65)]">
               {activitiesContent.headlinePrefix}{" "}
               <span className="headline-accent text-yellow-golden font-serif italic">
                 {activitiesContent.headlineAccentLetter}
               </span>
               {activitiesContent.headlineSuffix}
             </h2>
-
-            {/* Pulsing Play Button */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="relative inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-yellow-golden text-indigo-deep shadow-2xl transition-transform duration-300 hover:scale-110 active:scale-95 group"
-              aria-label="Play activities video full screen"
-            >
-              <span className="absolute inset-0 rounded-full bg-yellow-golden/40 animate-ping -z-10" />
-              <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-indigo-deep stroke-none translate-x-0.5" />
-            </button>
-            <p className="mt-4 text-xs sm:text-sm text-light-text/75 font-sans">
-              {activitiesContent.playPrompt}
-            </p>
           </div>
 
           {/* Infinite Marquee of Activity Pills */}
-          <div className="z-10 overflow-hidden py-3 border-t border-white/10 select-none">
+          <div className="z-10 overflow-hidden py-3 border-t border-white/15 select-none">
             <div className="flex gap-3 whitespace-nowrap animate-marquee">
               {[...activitiesContent.pills, ...activitiesContent.pills].map((pill, idx) => (
                 <span
                   key={`${pill}-${idx}`}
-                  className="px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs sm:text-sm font-sans tracking-wide border border-white/10"
+                  className="px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs sm:text-sm font-sans tracking-wide border border-white/15 shadow-sm"
                 >
                   {pill}
                 </span>
@@ -234,35 +192,6 @@ export function Activities() {
           );
         })}
       </div>
-
-      {/* Fullscreen Modal Video Player */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4 sm:p-8"
-          >
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
-              aria-label="Close modal"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="relative w-full max-w-5xl aspect-video rounded-kcard overflow-hidden bg-black shadow-2xl">
-              <video
-                src={activitiesContent.videoSrc}
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }
