@@ -128,7 +128,7 @@ export function LearnerPath() {
           stageMilestonesRef.current.innerHTML = stage.milestones
             .map(
               (m) =>
-                `<span class="text-[11px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/10 font-sans">${m}</span>`
+                `<span class="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/[0.18] text-white/95 border border-white/20 font-sans shadow-sm">${m}</span>`
             )
             .join("");
         }
@@ -576,7 +576,7 @@ export function LearnerPath() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <TagChip variant="yellow">{learnerPathContent.sectionBadge}</TagChip>
 
-              <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md text-white text-xs tracking-wide border border-white/15">
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md text-white text-[11px] tracking-wide border border-white/20">
                 <ChevronDown className="w-3.5 h-3.5 text-yellow-golden animate-bounce" />
                 <span>{learnerPathContent.scrollCue}</span>
               </div>
@@ -592,62 +592,62 @@ export function LearnerPath() {
           </div>
 
           {/* 
-            PART 3: Smaller Stage Info Card:
-            - max-width: 400px, padding: 20px, radius: 16px.
-            - Title 26px, body 13px with line-height 1.5, tags 11px with tighter padding.
-            - Frosted glass with 12px blur max.
-            - Positioned bottom-left, safely clear of the child's face.
+            PART 3: Smaller & Less Transparent Stage Info Card:
+            - max-width: 330px, padding: 14px-16px, radius: 14px.
+            - Title 20px, body 12px with line-height 1.4, tags 10px.
+            - Higher opacity frosted glass (0.85 opacity) for crisp legibility and solid presence.
+            - Positioned bottom-left, comfortably clear of the child's face.
           */}
           <div
             ref={stageCardRef}
-            className="pointer-events-auto max-w-[380px] sm:max-w-[400px] p-5 rounded-[16px] border border-white/15 shadow-2xl transition-all duration-200"
+            className="pointer-events-auto max-w-[310px] sm:max-w-[335px] p-3.5 sm:p-4 rounded-[14px] border border-white/20 shadow-2xl transition-all duration-200"
             style={{
-              backgroundColor: "rgba(20, 20, 40, 0.45)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              backgroundColor: "rgba(16, 16, 32, 0.85)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
             }}
           >
             {/* Top Stage Header */}
-            <div className="flex items-center justify-between text-yellow-golden text-sm font-sans font-medium mb-1.5">
+            <div className="flex items-center justify-between text-yellow-golden text-xs font-sans font-medium mb-1">
               <span
                 ref={stageNumberRef}
-                className="tracking-wide uppercase text-xs sm:text-sm font-mono"
+                className="tracking-wider uppercase text-[11px] sm:text-xs font-mono"
               >
                 Stage {initialStage.number}
               </span>
               <span
                 ref={stageGradesRef}
-                className="px-2 py-0.5 rounded-full bg-yellow-golden/20 text-yellow-golden text-[11px] font-mono"
+                className="px-2 py-0.5 rounded-full bg-yellow-golden/30 text-yellow-golden text-[10px] font-mono border border-yellow-golden/35"
               >
                 {initialStage.grades}
               </span>
             </div>
 
-            {/* Stage Title (26px) */}
+            {/* Stage Title */}
             <h3
               ref={stageTitleRef}
-              className="text-[24px] sm:text-[26px] font-sans font-light tracking-tight text-white mb-1.5 leading-tight"
+              className="text-[19px] sm:text-[21px] font-sans font-light tracking-tight text-white mb-1 leading-snug"
             >
               {initialStage.title}
             </h3>
 
-            {/* Stage Description (13px, 1.5 line-height) */}
+            {/* Stage Description */}
             <p
               ref={stageDescRef}
-              className="text-[13px] leading-[1.5] text-[#E4E3F5]/90 font-sans mb-3"
+              className="text-[12px] leading-[1.4] text-[#E4E3F5]/90 font-sans mb-2.5"
             >
               {initialStage.description}
             </p>
 
-            {/* Milestone Chips (11px, tighter padding) */}
+            {/* Milestone Chips */}
             <div
               ref={stageMilestonesRef}
-              className="flex flex-wrap gap-1.5 pt-2.5 border-t border-white/10"
+              className="flex flex-wrap gap-1 pt-2 border-t border-white/15"
             >
               {initialStage.milestones.map((milestone) => (
                 <span
                   key={milestone}
-                  className="text-[11px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/10 font-sans"
+                  className="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/[0.18] text-white/95 border border-white/20 font-sans shadow-sm"
                 >
                   {milestone}
                 </span>
