@@ -44,32 +44,47 @@ export function Activities() {
   useEffect(() => {
     if (prefersReducedMotion || !cardRef.current) return;
 
-    // Scroll expansion effect: start at 70% width, scale 0.85, radius 48px -> full width, scale 1.0, radius 24px
+    // Cinematic scroll expansion: card smoothly expands from 0.88 to 1.0 with soft radius transition
     const isMobile = window.innerWidth < 768;
-    if (!isMobile) {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top 80%",
-          end: "top 25%",
-          scrub: true,
-        },
-      });
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: containerRef.current,
+        start: "top 85%",
+        end: "top 20%",
+        scrub: 0.6,
+      },
+    });
 
+    tl.fromTo(
+      cardRef.current,
+      {
+        scale: isMobile ? 0.94 : 0.88,
+        borderRadius: isMobile ? "36px" : "48px",
+      },
+      {
+        scale: 1.0,
+        borderRadius: isMobile ? "20px" : "24px",
+        ease: "power2.out",
+      },
+      0
+    );
+
+    if (videoRef.current) {
       tl.fromTo(
-        cardRef.current,
-        { scale: 0.85, borderRadius: "48px", width: "85%" },
-        { scale: 1.0, borderRadius: "24px", width: "100%", ease: "power2.out" }
+        videoRef.current,
+        { scale: 1.1 },
+        { scale: 1.02, ease: "none" },
+        0
       );
+    }
 
-      if (headlineRef.current) {
-        tl.fromTo(
-          headlineRef.current,
-          { opacity: 0, y: 30 },
-          { opacity: 1, y: 0, ease: "power2.out" },
-          0.3
-        );
-      }
+    if (headlineRef.current) {
+      tl.fromTo(
+        headlineRef.current,
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, ease: "power2.out" },
+        0.2
+      );
     }
 
     // Sub-cards reveal at 85% viewport
@@ -101,7 +116,8 @@ export function Activities() {
       <div className="flex justify-center w-full">
         <div
           ref={cardRef}
-          className="relative min-h-[500px] sm:min-h-[580px] rounded-kcard overflow-hidden bg-black border border-white/10 shadow-2xl flex flex-col justify-between p-6 sm:p-12 transition-all duration-300 mx-auto select-none"
+          style={{ willChange: "transform, border-radius", transformOrigin: "center center" }}
+          className="relative min-h-[500px] sm:min-h-[580px] rounded-[48px] overflow-hidden bg-black border border-white/10 shadow-2xl flex flex-col justify-between p-6 sm:p-12 mx-auto select-none"
         >
           {/* Background Video (Clean natural colors, auto play on loop) */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -158,7 +174,7 @@ export function Activities() {
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12"
       >
         {activitiesContent.subCards.map((card) => {
-          const shapeSrc = `/assets/shape-${card.id}.png`;
+          const iconSrc = `/assets/icon-${card.id}.png`;
 
           return (
             <div
@@ -166,11 +182,11 @@ export function Activities() {
               className="rounded-kcard p-8 bg-yellow-surface text-indigo-deep border border-yellow-border shadow-sm flex flex-col justify-between transition-transform duration-300 hover:-translate-y-1 hover:shadow-md"
             >
               <div>
-                {/* Authentic Geometric Shape from reference design */}
+                {/* Transparent Extracted Icon */}
                 <div className="relative w-full h-32 mb-6 flex items-center justify-center">
-                  <div className="relative w-28 h-28">
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28">
                     <Image
-                      src={shapeSrc}
+                      src={iconSrc}
                       alt={card.title}
                       fill
                       className="object-contain"
