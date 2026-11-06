@@ -12,38 +12,84 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function LifeSkills() {
   const containerRef = useRef<HTMLElement | null>(null);
+  const headerLeftRef = useRef<HTMLDivElement | null>(null);
+  const headerRightRef = useRef<HTMLParagraphElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
-    if (prefersReducedMotion || !gridRef.current) return;
+    if (prefersReducedMotion || !containerRef.current) return;
 
-    const cards = gridRef.current.children;
+    // Header reveal from Left & Right
+    if (headerLeftRef.current && headerRightRef.current) {
+      gsap.fromTo(
+        headerLeftRef.current,
+        { x: -50, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerLeftRef.current,
+            start: "top 88%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
 
-    gsap.fromTo(
-      cards,
-      { y: 40, opacity: 0, scale: 0.96 },
-      {
-        y: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-        scrollTrigger: {
-          trigger: gridRef.current,
-          start: "top 85%",
-          toggleActions: "play none none none",
-        },
-      }
-    );
+      gsap.fromTo(
+        headerRightRef.current,
+        { x: 50, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: headerRightRef.current,
+            start: "top 88%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
+    }
+
+    if (gridRef.current) {
+      const cards = Array.from(gridRef.current.children);
+
+      cards.forEach((card, idx) => {
+        // Alternating directional offset (Left, Center, Right)
+        const col = idx % 3;
+        const xOffset = col === 0 ? -40 : col === 2 ? 40 : 0;
+
+        gsap.fromTo(
+          card,
+          { x: xOffset, y: 35, opacity: 0, scale: 0.95 },
+          {
+            x: 0,
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 0.85,
+            delay: idx * 0.08,
+            ease: "cubic-bezier(0.22, 1, 0.36, 1)",
+            scrollTrigger: {
+              trigger: card,
+              start: "top 90%",
+              toggleActions: "play none none none",
+            },
+          }
+        );
+      });
+    }
   }, [prefersReducedMotion]);
 
   return (
     <section id="life-skills" ref={containerRef} className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
-      {/* Header */}
+      {/* Header with Left/Right Entrance */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-        <div>
+        <div ref={headerLeftRef}>
           <TagChip variant="cream" className="mb-4">
             {lifeSkillsContent.sectionTag}
           </TagChip>
@@ -60,7 +106,10 @@ export function LifeSkills() {
           </h2>
         </div>
 
-        <p className="max-w-md text-sm sm:text-base text-muted-text font-sans leading-relaxed">
+        <p
+          ref={headerRightRef}
+          className="max-w-md text-sm sm:text-base text-muted-text font-sans leading-relaxed"
+        >
           {lifeSkillsContent.subtext}
         </p>
       </div>

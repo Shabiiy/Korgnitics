@@ -87,26 +87,58 @@ export function Activities() {
       );
     }
 
-    // Sub-cards reveal at 85% viewport
+    // Sub-cards scroll expansion: icons start small and expand along with the cards on scroll
     if (subcardsRef.current) {
-      const items = subcardsRef.current.children;
-      gsap.fromTo(
-        items,
-        { y: 40, opacity: 0, scale: 0.96 },
-        {
-          y: 0,
-          opacity: 1,
-          scale: 1,
-          duration: 0.8,
-          stagger: 0.1,
-          ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-          scrollTrigger: {
-            trigger: subcardsRef.current,
-            start: "top 85%",
-            toggleActions: "play none none none",
+      const cardEls = subcardsRef.current.querySelectorAll(".activity-subcard");
+      const iconEls = subcardsRef.current.querySelectorAll(".activity-subcard-icon");
+
+      const tlSubcards = gsap.timeline({
+        scrollTrigger: {
+          trigger: subcardsRef.current,
+          start: "top 92%",
+          end: "top 45%",
+          scrub: 0.8,
+        },
+      });
+
+      cardEls.forEach((cardEl, idx) => {
+        const iconEl = iconEls[idx];
+        const delay = idx * 0.1;
+
+        tlSubcards.fromTo(
+          cardEl,
+          {
+            scale: 0.88,
+            y: 45,
+            opacity: 0.65,
+            borderRadius: "36px",
           },
+          {
+            scale: 1.0,
+            y: 0,
+            opacity: 1.0,
+            borderRadius: "24px",
+            ease: "power2.out",
+          },
+          delay
+        );
+
+        if (iconEl) {
+          tlSubcards.fromTo(
+            iconEl,
+            {
+              scale: 0.5,
+              opacity: 0.5,
+            },
+            {
+              scale: 1.0,
+              opacity: 1.0,
+              ease: "power2.out",
+            },
+            delay
+          );
         }
-      );
+      });
     }
   }, [prefersReducedMotion]);
 
@@ -179,12 +211,16 @@ export function Activities() {
           return (
             <div
               key={card.id}
-              className="rounded-kcard p-8 bg-yellow-surface text-indigo-deep border border-yellow-border shadow-sm flex flex-col justify-between transition-transform duration-300 hover:-translate-y-1 hover:shadow-md"
+              style={{ willChange: "transform, opacity, border-radius" }}
+              className="activity-subcard rounded-kcard p-8 bg-yellow-surface text-indigo-deep border border-yellow-border shadow-sm flex flex-col justify-between transition-[box-shadow,border-color] duration-300 hover:shadow-lg hover:border-yellow-golden/50"
             >
               <div>
-                {/* Transparent Extracted Icon */}
-                <div className="relative w-full h-32 mb-6 flex items-center justify-center">
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+                {/* Transparent Extracted Icon with Scroll Expansion */}
+                <div className="relative w-full h-32 mb-6 flex items-center justify-center overflow-visible">
+                  <div
+                    style={{ willChange: "transform, opacity" }}
+                    className="activity-subcard-icon relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center"
+                  >
                     <Image
                       src={iconSrc}
                       alt={card.title}

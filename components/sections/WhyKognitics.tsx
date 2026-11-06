@@ -12,6 +12,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function WhyKognitics() {
   const containerRef = useRef<HTMLElement | null>(null);
+  const leftColRef = useRef<HTMLDivElement | null>(null);
   const rowsRef = useRef<(HTMLDivElement | null)[]>([]);
   const bordersRef = useRef<(HTMLDivElement | null)[]>([]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -19,6 +20,25 @@ export function WhyKognitics() {
 
   useEffect(() => {
     if (prefersReducedMotion || !containerRef.current) return;
+
+    // Left Column slides in smoothly from the LEFT
+    if (leftColRef.current) {
+      gsap.fromTo(
+        leftColRef.current,
+        { x: -60, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: leftColRef.current,
+            start: "top 85%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
+    }
 
     // Border lines draw left to right (scaleX 0 -> 1)
     bordersRef.current.forEach((border) => {
@@ -39,21 +59,21 @@ export function WhyKognitics() {
       );
     });
 
-    // Rows slide up
+    // Rows slide in smoothly from the RIGHT
     rowsRef.current.forEach((row, idx) => {
       if (!row) return;
       gsap.fromTo(
         row,
-        { y: 30, opacity: 0 },
+        { x: 50, opacity: 0 },
         {
-          y: 0,
+          x: 0,
           opacity: 1,
-          duration: 0.6,
-          delay: idx * 0.05,
-          ease: "power2.out",
+          duration: 0.75,
+          delay: idx * 0.08,
+          ease: "power3.out",
           scrollTrigger: {
             trigger: row,
-            start: "top 90%",
+            start: "top 92%",
             toggleActions: "play none none none",
           },
         }
@@ -64,8 +84,8 @@ export function WhyKognitics() {
   return (
     <section id="why-kognitics" ref={containerRef} className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        {/* Left Column (Sticky Intro) */}
-        <div className="lg:col-span-5 lg:sticky lg:top-28">
+        {/* Left Column (Sticky Intro) - Slides from LEFT */}
+        <div ref={leftColRef} className="lg:col-span-5 lg:sticky lg:top-28">
           <TagChip variant="cream" className="mb-4">
             {whyKogniticsContent.sectionTag}
           </TagChip>

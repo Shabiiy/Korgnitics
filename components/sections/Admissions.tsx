@@ -30,6 +30,8 @@ export function Admissions() {
   const containerRef = useRef<HTMLElement | null>(null);
   const stepsRef = useRef<HTMLDivElement | null>(null);
   const formCardRef = useRef<HTMLDivElement | null>(null);
+  const formLeftRef = useRef<HTMLDivElement | null>(null);
+  const formRightRef = useRef<HTMLDivElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -80,27 +82,68 @@ export function Admissions() {
   };
 
   useEffect(() => {
-    if (prefersReducedMotion || !stepsRef.current) return;
+    if (prefersReducedMotion) return;
 
-    // Stagger step cards
-    const cards = stepsRef.current.children;
-    gsap.fromTo(
-      cards,
-      { y: 40, opacity: 0, scale: 0.96 },
-      {
-        y: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-        scrollTrigger: {
-          trigger: stepsRef.current,
-          start: "top 85%",
-          toggleActions: "play none none none",
-        },
-      }
-    );
+    // 3 Step Cards directional reveal (Left, Center, Right)
+    if (stepsRef.current) {
+      const cards = Array.from(stepsRef.current.children);
+      cards.forEach((card, idx) => {
+        const xOffset = idx === 0 ? -40 : idx === 2 ? 40 : 0;
+        gsap.fromTo(
+          card,
+          { x: xOffset, y: 35, opacity: 0, scale: 0.95 },
+          {
+            x: 0,
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 0.85,
+            delay: idx * 0.1,
+            ease: "cubic-bezier(0.22, 1, 0.36, 1)",
+            scrollTrigger: {
+              trigger: card,
+              start: "top 88%",
+              toggleActions: "play none none none",
+            },
+          }
+        );
+      });
+    }
+
+    // Enquiry form card: Left pane from left, Right pane from right
+    if (formLeftRef.current && formRightRef.current) {
+      gsap.fromTo(
+        formLeftRef.current,
+        { x: -50, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: formCardRef.current,
+            start: "top 82%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
+
+      gsap.fromTo(
+        formRightRef.current,
+        { x: 50, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: formCardRef.current,
+            start: "top 82%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
+    }
   }, [prefersReducedMotion]);
 
   return (
@@ -198,7 +241,10 @@ export function Admissions() {
         className="grid grid-cols-1 lg:grid-cols-12 rounded-kcard overflow-hidden border border-yellow-border shadow-xl bg-white/70 backdrop-blur-md"
       >
         {/* Left Information Pane (Deep Indigo) */}
-        <div className="lg:col-span-5 bg-indigo-deep text-light-text p-8 sm:p-12 flex flex-col justify-between">
+        <div
+          ref={formLeftRef}
+          className="lg:col-span-5 bg-indigo-deep text-light-text p-8 sm:p-12 flex flex-col justify-between"
+        >
           <div>
             <TagChip variant="indigo" className="mb-4">
               Direct Contact
@@ -250,7 +296,7 @@ export function Admissions() {
         </div>
 
         {/* Right Form Pane */}
-        <div className="lg:col-span-7 p-8 sm:p-12 bg-yellow-surface/50">
+        <div ref={formRightRef} className="lg:col-span-7 p-8 sm:p-12 bg-yellow-surface/50">
           {submitSuccess ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

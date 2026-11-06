@@ -36,6 +36,24 @@ export function ClosingCard() {
       { scale: 1.0, borderRadius: "24px", ease: "power2.out" }
     );
 
+    if (contentRef.current) {
+      gsap.fromTo(
+        contentRef.current,
+        { x: -40, opacity: 0 },
+        {
+          x: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: contentRef.current,
+            start: "top 82%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
+    }
+
     if (footerLinksRef.current) {
       gsap.fromTo(
         footerLinksRef.current,
