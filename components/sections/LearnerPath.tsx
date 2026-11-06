@@ -128,7 +128,7 @@ export function LearnerPath() {
           stageMilestonesRef.current.innerHTML = stage.milestones
             .map(
               (m) =>
-                `<span class="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/[0.18] text-white/95 border border-white/20 font-sans shadow-sm">${m}</span>`
+                `<span class="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/15 font-sans backdrop-blur-sm">${m}</span>`
             )
             .join("");
         }
@@ -592,19 +592,19 @@ export function LearnerPath() {
           </div>
 
           {/* 
-            PART 3: Smaller & Less Transparent Stage Info Card:
+            PART 3: Smaller & Neutral Semi-Transparent Frosted Glass Stage Info Card:
             - max-width: 330px, padding: 14px-16px, radius: 14px.
-            - Title 20px, body 12px with line-height 1.4, tags 10px.
-            - Higher opacity frosted glass (0.85 opacity) for crisp legibility and solid presence.
+            - Pure neutral black frosted glass (rgba(0,0,0,0.50), NO blue overlay).
+            - Enhanced backdrop blur (20px) for elegant transparency and soft optical diffusion.
             - Positioned bottom-left, comfortably clear of the child's face.
           */}
           <div
             ref={stageCardRef}
-            className="pointer-events-auto max-w-[310px] sm:max-w-[335px] p-3.5 sm:p-4 rounded-[14px] border border-white/20 shadow-2xl transition-all duration-200"
+            className="pointer-events-auto max-w-[310px] sm:max-w-[335px] p-3.5 sm:p-4 rounded-[14px] border border-white/15 shadow-2xl transition-all duration-200"
             style={{
-              backgroundColor: "rgba(16, 16, 32, 0.85)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
+              backgroundColor: "rgba(0, 0, 0, 0.50)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
             }}
           >
             {/* Top Stage Header */}
@@ -617,7 +617,7 @@ export function LearnerPath() {
               </span>
               <span
                 ref={stageGradesRef}
-                className="px-2 py-0.5 rounded-full bg-yellow-golden/30 text-yellow-golden text-[10px] font-mono border border-yellow-golden/35"
+                className="px-2 py-0.5 rounded-full bg-yellow-golden/20 text-yellow-golden text-[10px] font-mono border border-yellow-golden/30"
               >
                 {initialStage.grades}
               </span>
@@ -631,15 +631,15 @@ export function LearnerPath() {
               {initialStage.title}
             </h3>
 
-            {/* Stage Description */}
+            {/* Stage Description (Neutral text, no lavender/blue hue) */}
             <p
               ref={stageDescRef}
-              className="text-[12px] leading-[1.4] text-[#E4E3F5]/90 font-sans mb-2.5"
+              className="text-[12px] leading-[1.4] text-white/85 font-sans mb-2.5"
             >
               {initialStage.description}
             </p>
 
-            {/* Milestone Chips */}
+            {/* Milestone Chips (Neutral translucent glass pills) */}
             <div
               ref={stageMilestonesRef}
               className="flex flex-wrap gap-1 pt-2 border-t border-white/15"
@@ -647,7 +647,7 @@ export function LearnerPath() {
               {initialStage.milestones.map((milestone) => (
                 <span
                   key={milestone}
-                  className="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/[0.18] text-white/95 border border-white/20 font-sans shadow-sm"
+                  className="text-[10px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/15 font-sans backdrop-blur-sm"
                 >
                   {milestone}
                 </span>
