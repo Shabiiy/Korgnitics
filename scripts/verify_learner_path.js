@@ -14,6 +14,7 @@ async function run() {
 
   console.log('Navigating to http://localhost:3000...');
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+  await new Promise(r => setTimeout(r, 600));
 
   // Get LearnerPath section offset
   const pathInfo = await page.evaluate(() => {
@@ -33,32 +34,36 @@ async function run() {
     return;
   }
 
-  // 1. Scroll to start of LearnerPath (Phase A: Card State)
-  await page.evaluate((top) => {
-    window.scrollTo({ top, behavior: 'instant' });
-  }, pathInfo.top);
-  await new Promise(r => setTimeout(r, 800));
+  // Smooth scroll helper using Lenis scrollTo
+  async function scrollToY(targetY) {
+    await page.evaluate((y) => {
+      if (window.__lenis) {
+        window.__lenis.scrollTo(y, { immediate: true });
+      } else {
+        window.scrollTo(0, y);
+      }
+    }, targetY);
+    // Allow rAF lerp loop to settle
+    await new Promise(r => setTimeout(r, 450));
+  }
 
+  const baseScroll = pathInfo.top;
+
+  // 1. Phase A: Card State (progress 0)
+  await scrollToY(baseScroll);
   await page.screenshot({ path: path.join(artifactDir, 'verify_lp_01_phaseA_card.png') });
   console.log('Captured Phase A');
 
-  // Total scroll length is window.innerHeight * 5 = 4500px
-  const baseScroll = pathInfo.top;
-
   // 2. Phase B: Expanded Edge to Edge (progress ~0.15)
-  await page.evaluate((top) => {
-    window.scrollTo({ top: top + 650, behavior: 'instant' });
-  }, baseScroll);
-  await new Promise(r => setTimeout(r, 600));
+  // Pin length is 5.5 * 900 = 4950px
+  // 0.15 * 4950 = ~740px
+  await scrollToY(baseScroll + 750);
   await page.screenshot({ path: path.join(artifactDir, 'verify_lp_02_phaseB_expanded.png') });
   console.log('Captured Phase B');
 
   // 3. Phase C: Video Scrub Stage 2 (progress ~0.45)
-  await page.evaluate((top) => {
-    window.scrollTo({ top: top + 2000, behavior: 'instant' });
-  }, baseScroll);
-  await new Promise(r => setTimeout(r, 600));
-
+  // 0.45 * 4950 = ~2225px
+  await scrollToY(baseScroll + 2250);
   const stageAtMid = await page.evaluate(() => {
     const h3 = document.querySelector('#learner-path h3');
     return h3 ? h3.textContent : '';
@@ -67,11 +72,8 @@ async function run() {
   await page.screenshot({ path: path.join(artifactDir, 'verify_lp_03_phaseC_stage2.png') });
 
   // 4. Phase C: Video Scrub Stage 4 (progress ~0.75)
-  await page.evaluate((top) => {
-    window.scrollTo({ top: top + 3400, behavior: 'instant' });
-  }, baseScroll);
-  await new Promise(r => setTimeout(r, 600));
-
+  // 0.75 * 4950 = ~3700px
+  await scrollToY(baseScroll + 3700);
   const stageAtEndScrub = await page.evaluate(() => {
     const h3 = document.querySelector('#learner-path h3');
     return h3 ? h3.textContent : '';
@@ -80,10 +82,9 @@ async function run() {
   await page.screenshot({ path: path.join(artifactDir, 'verify_lp_04_phaseC_stage4.png') });
 
   // 5. Phase D/E: Shrink & Replay Button (progress ~0.95)
-  await page.evaluate((top) => {
-    window.scrollTo({ top: top + 4400, behavior: 'instant' });
-  }, baseScroll);
-  await new Promise(r => setTimeout(r, 800));
+  // 0.95 * 4950 = ~4700px
+  await scrollToY(baseScroll + 4750);
+  await new Promise(r => setTimeout(r, 300));
   await page.screenshot({ path: path.join(artifactDir, 'verify_lp_05_phaseD_E_replay.png') });
   console.log('Captured Phase D/E');
 
@@ -95,4 +96,3 @@ run().catch(err => {
   console.error(err);
   process.exit(1);
 });
-

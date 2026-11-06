@@ -40,20 +40,22 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       };
     }
 
-    // Initialize Lenis with autoRaf: false so Lenis and GSAP share strictly ONE ticker loop
+    // Initialize Lenis with one constant scroll feel (FIX 1)
     const lenis = new Lenis({
       autoRaf: false,
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      lerp: 0.095, // Constant linear momentum (0.09 to 0.1)
+      wheelMultiplier: 1.0,
+      smoothWheel: true,
       orientation: "vertical",
       gestureOrientation: "vertical",
-      smoothWheel: true,
-      wheelMultiplier: 0.9,
       touchMultiplier: 1.5,
     });
 
     lenisRef.current = lenis;
     setLenisInstance(lenis);
+    if (typeof window !== "undefined") {
+      (window as any).__lenis = lenis;
+    }
 
     // Synchronize Lenis with GSAP ScrollTrigger
     lenis.on("scroll", ScrollTrigger.update);

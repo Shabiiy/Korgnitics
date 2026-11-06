@@ -129,7 +129,7 @@ export function Hero() {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: isMobile ? "+=80%" : "+=100%",
+          end: () => "+=" + (isMobile ? window.innerHeight * 1.2 : window.innerHeight * 1.5),
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,

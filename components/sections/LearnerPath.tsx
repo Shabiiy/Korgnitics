@@ -40,10 +40,12 @@ export function LearnerPath() {
   const isUnmountedRef = useRef(false);
   const isInViewRef = useRef(false);
   const isReplayingRef = useRef(false);
+  const preWarmStartedRef = useRef(false);
   const lastDrawnFrameRef = useRef(-1);
 
   // Scrub targets for rAF lerp loop (completely decoupled from React state)
   const targetProgressRef = useRef(0); // 0.0 to 1.0 (Phase C)
+  const prevTargetProgressRef = useRef(0);
   const lerpedProgressRef = useRef(0);
   const currentStageIdxRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
@@ -145,32 +147,17 @@ export function LearnerPath() {
   }, []);
 
   // -------------------------------------------------------------
-  // Preload frames: Frame 0 immediately, rest in background batches
+  // Preload frames (FIX 4 - Pre-warm 2 viewports ahead)
   // -------------------------------------------------------------
-  useEffect(() => {
-    isUnmountedRef.current = false;
-    const mobile = window.innerWidth < 768;
-    isMobileRef.current = mobile;
-    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
+  const startPrewarming = useCallback(() => {
+    if (preWarmStartedRef.current || isUnmountedRef.current) return;
+    preWarmStartedRef.current = true;
 
+    const mobile = window.innerWidth < 768;
+    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
     const getPath = (idx: number) =>
       `${framesDir}/frame_${String(idx + 1).padStart(4, "0")}.webp`;
 
-    // 1. Immediately load frame 0 for poster display
-    const firstImg = new Image();
-    firstImg.src = getPath(0);
-    firstImg.onload = async () => {
-      if (isUnmountedRef.current) return;
-      try {
-        const bmp = await createImageBitmap(firstImg);
-        framesRef.current[0] = bmp;
-      } catch {
-        framesRef.current[0] = firstImg;
-      }
-      drawFrame(0);
-    };
-
-    // 2. Background progressive batch loader
     const loadRemainingFrames = async () => {
       const batchSize = 6;
       for (let i = 1; i < TOTAL_FRAMES; i += batchSize) {
@@ -188,7 +175,6 @@ export function LearnerPath() {
                   framesRef.current[index] = bmp;
                 }
               } catch {
-                // Fallback to Image
                 const img = new Image();
                 img.src = getPath(index);
                 img.onload = () => {
@@ -205,14 +191,42 @@ export function LearnerPath() {
       }
     };
 
-    // Start background load after a brief tick to not block main thread
-    const timer = setTimeout(loadRemainingFrames, 60);
+    loadRemainingFrames();
+  }, []);
+
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    const mobile = window.innerWidth < 768;
+    isMobileRef.current = mobile;
+    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
+
+    const getPath = (idx: number) =>
+      `${framesDir}/frame_${String(idx + 1).padStart(4, "0")}.webp`;
+
+    // 1. Immediately load frame 0 and pre-render before section arrives (FIX 4)
+    const firstImg = new Image();
+    firstImg.src = getPath(0);
+    firstImg.onload = async () => {
+      if (isUnmountedRef.current) return;
+      try {
+        const bmp = await createImageBitmap(firstImg);
+        framesRef.current[0] = bmp;
+      } catch {
+        framesRef.current[0] = firstImg;
+      }
+      drawFrame(0);
+    };
+
+    // Idle pre-warm fallback if user remains at top of page
+    const idleTimer = setTimeout(() => {
+      startPrewarming();
+    }, 1200);
 
     return () => {
       isUnmountedRef.current = true;
-      clearTimeout(timer);
+      clearTimeout(idleTimer);
     };
-  }, [drawFrame]);
+  }, [drawFrame, startPrewarming]);
 
   // -------------------------------------------------------------
   // Canvas resize handler (DPR capped at 2)
@@ -242,11 +256,10 @@ export function LearnerPath() {
   }, [drawFrame]);
 
   // -------------------------------------------------------------
-  // Component-owned rAF lerp loop:
-  // - Pauses when section is not in view
-  // - Lerps target progress (factor 0.15)
-  // - Redraws canvas ONLY when rounded frame index changes
+  // Component-owned rAF lerp loop (FIX 2: lerp factor ~0.12)
+  // - Starts ahead of boundary so ticker is warm before entry
   // - Directly drives timeline transform: scaleX() continuously
+  // - Pauses only when fully out of view
   // -------------------------------------------------------------
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -258,7 +271,8 @@ export function LearnerPath() {
       ) {
         const target = targetProgressRef.current;
         const current = lerpedProgressRef.current;
-        const nextProg = current + (target - current) * 0.15;
+        // Cinematic progress lerp smoothing (factor 0.12)
+        const nextProg = current + (target - current) * 0.12;
         lerpedProgressRef.current = nextProg;
 
         // 1. Draw frame if index changed
@@ -333,7 +347,7 @@ export function LearnerPath() {
   }, []);
 
   // -------------------------------------------------------------
-  // GSAP ScrollTrigger Master Timeline
+  // GSAP ScrollTrigger Sequence with Boundary Jank Elimination
   // -------------------------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
@@ -352,7 +366,6 @@ export function LearnerPath() {
     const ctx = gsap.context(() => {
       gsap.set(wrapper, {
         clipPath: initialInset,
-        willChange: "clip-path",
       });
 
       if (headerUiRef.current) {
@@ -363,21 +376,105 @@ export function LearnerPath() {
         gsap.set(replayBtnRef.current, { opacity: 0, y: 16, pointerEvents: "none" });
       }
 
-      // Master Timeline pinned for ~500vh
+      // FIX 4: Pre-warm frames 2 viewports ahead of entry
+      ScrollTrigger.create({
+        trigger: container,
+        start: "top bottom+=200%",
+        once: true,
+        onEnter: () => {
+          startPrewarming();
+        },
+      });
+
+      // FIX 4: Approach Trigger: warm rAF loop and promote layer BEFORE crossing pin boundary
+      ScrollTrigger.create({
+        trigger: container,
+        start: "top bottom+=150px",
+        end: () => "+=" + (window.innerHeight * 5.5 + 300),
+        onEnter: () => {
+          isInViewRef.current = true;
+          if (wrapperRef.current) wrapperRef.current.style.willChange = "clip-path";
+        },
+        onLeave: () => {
+          isInViewRef.current = false;
+          if (wrapperRef.current) wrapperRef.current.style.willChange = "auto";
+        },
+        onEnterBack: () => {
+          isInViewRef.current = true;
+          if (wrapperRef.current) wrapperRef.current.style.willChange = "clip-path";
+        },
+        onLeaveBack: () => {
+          isInViewRef.current = false;
+          if (wrapperRef.current) wrapperRef.current.style.willChange = "auto";
+        },
+      });
+
+      // FIX 3: Gentle speed ramp ahead of pin (start "top bottom-=30%" to "top top")
+      ScrollTrigger.create({
+        trigger: container,
+        start: "top bottom-=30%",
+        end: "top top",
+        onEnter: () => {
+          if (lenis) {
+            gsap.to(lenis.options, {
+              wheelMultiplier: 0.75,
+              duration: 0.4,
+              ease: "power2.out",
+              overwrite: true,
+            });
+          }
+        },
+        onLeaveBack: () => {
+          if (lenis) {
+            gsap.to(lenis.options, {
+              wheelMultiplier: 1.0,
+              duration: 0.4,
+              ease: "power2.out",
+              overwrite: true,
+            });
+          }
+        },
+      });
+
+      // Matching speed ramp after pin exit
+      ScrollTrigger.create({
+        trigger: container,
+        start: () => "+=" + (isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5),
+        end: () => "+=" + ((isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5) + window.innerHeight * 0.3),
+        onLeave: () => {
+          if (lenis) {
+            gsap.to(lenis.options, {
+              wheelMultiplier: 1.0,
+              duration: 0.4,
+              ease: "power2.out",
+              overwrite: true,
+            });
+          }
+        },
+        onEnterBack: () => {
+          if (lenis) {
+            gsap.to(lenis.options, {
+              wheelMultiplier: 0.75,
+              duration: 0.4,
+              ease: "power2.out",
+              overwrite: true,
+            });
+          }
+        },
+      });
+
+      // Master Timeline pinned for ~550vh (FIX 2: cinematic pin length)
       const tl = gsap.timeline({
         scrollTrigger: {
           id: "journey-video",
           trigger: container,
           start: "top top",
-          end: () => "+=" + (isMobile ? window.innerHeight * 3.5 : window.innerHeight * 5),
+          end: () => "+=" + (isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5),
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
           scrub: 0.6,
           invalidateOnRefresh: true,
-          onToggle: (self) => {
-            isInViewRef.current = self.isActive;
-          },
           onUpdate: (self) => {
             if (isReplayingRef.current) return;
             const p = self.progress;
@@ -386,14 +483,21 @@ export function LearnerPath() {
             applyUniformClip(p);
 
             // Progress mapping to middle 60% of scroll (0.2 -> 0.8)
+            let rawTarget = 0;
             if (p < 0.2) {
-              targetProgressRef.current = 0;
+              rawTarget = 0;
             } else if (p <= 0.8) {
-              const vProg = (p - 0.2) / 0.6;
-              targetProgressRef.current = Math.max(0, Math.min(1, vProg));
+              rawTarget = (p - 0.2) / 0.6;
             } else {
-              targetProgressRef.current = 1.0;
+              rawTarget = 1.0;
             }
+
+            // Cap per-frame scroll velocity so a hard wheel flick cannot skip frames instantly
+            const prev = prevTargetProgressRef.current;
+            const maxDelta = 0.20;
+            const clamped = Math.max(prev - maxDelta, Math.min(prev + maxDelta, rawTarget));
+            prevTargetProgressRef.current = clamped;
+            targetProgressRef.current = clamped;
           },
         },
       });
@@ -476,8 +580,11 @@ export function LearnerPath() {
       const st = ScrollTrigger.getById("journey-video");
       if (st) st.kill(true);
       if (siteHeader) gsap.set(siteHeader, { opacity: 1, pointerEvents: "auto" });
+      if (lenis) {
+        lenis.options.wheelMultiplier = 1.0;
+      }
     };
-  }, [prefersReducedMotion, applyUniformClip]);
+  }, [prefersReducedMotion, applyUniformClip, lenis, startPrewarming]);
 
   // -------------------------------------------------------------
   // Phase E: Replay flow advancing frames at 24fps
@@ -490,7 +597,7 @@ export function LearnerPath() {
     setIsReplaying(true);
     isReplayingRef.current = true;
 
-    // 1. Lock user scroll with Lenis
+    // 1. Lock user scroll with Lenis only after button click (FIX 1 exception)
     if (lenis) {
       lenis.stop();
     }
@@ -538,6 +645,7 @@ export function LearnerPath() {
 
         targetProgressRef.current = prog;
         lerpedProgressRef.current = prog;
+        prevTargetProgressRef.current = prog;
 
         const frameIdx = Math.min(TOTAL_FRAMES - 1, Math.floor(prog * TOTAL_FRAMES));
         drawFrame(frameIdx);
@@ -609,7 +717,7 @@ export function LearnerPath() {
     <section
       id="learner-path"
       ref={containerRef}
-      className="relative w-full h-[100svh] bg-yellow-cream overflow-hidden flex items-center justify-center"
+      className="relative w-full h-[100svh] min-h-[100svh] bg-yellow-cream overflow-hidden flex items-center justify-center [contain:paint]"
     >
       {/* 
         Canvas Wrapper (Part 1 & 2):
@@ -619,7 +727,6 @@ export function LearnerPath() {
       <div
         ref={wrapperRef}
         className="absolute inset-0 w-full h-full overflow-hidden bg-black select-none pointer-events-none"
-        style={{ willChange: "clip-path" }}
       >
         {/* High performance Canvas rendering with object-fit: cover */}
         <canvas
