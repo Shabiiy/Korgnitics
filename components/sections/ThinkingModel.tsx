@@ -15,6 +15,7 @@ export function ThinkingModel() {
   const lineRef = useRef<HTMLDivElement | null>(null);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [activeStep, setActiveStep] = useState(0);
+  const activeStepRef = useRef(0);
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
@@ -40,9 +41,12 @@ export function ThinkingModel() {
           }
         }
 
-        // Active step illumination
+        // Active step illumination only on step change
         const currentActive = Math.min(4, Math.floor(prog * 5));
-        setActiveStep(currentActive);
+        if (currentActive !== activeStepRef.current) {
+          activeStepRef.current = currentActive;
+          setActiveStep(currentActive);
+        }
       },
     });
 
@@ -54,8 +58,8 @@ export function ThinkingModel() {
   return (
     <section id="thinking-model" ref={containerRef} className="py-20 px-3 sm:px-6 md:px-8">
       <div className="max-w-7xl mx-auto rounded-kcard bg-indigo-deep text-light-text p-6 sm:p-12 md:p-16 border border-indigo/40 shadow-2xl relative overflow-hidden">
-        {/* Subtle background glow */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-light/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Subtle background glow without heavy blur-3xl */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(circle_at_top_right,rgba(59,58,130,0.3)_0%,transparent_70%)] pointer-events-none" />
 
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">

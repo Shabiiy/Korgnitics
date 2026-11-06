@@ -5,7 +5,7 @@ import { SmoothScrollProvider } from "@/components/providers/SmoothScrollProvide
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500"],
   variable: "--font-inter",
   display: "swap",
 });
@@ -13,7 +13,7 @@ const inter = Inter({
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: ["400"],
-  style: ["normal", "italic"],
+  style: ["italic"],
   variable: "--font-instrument-serif",
   display: "swap",
 });

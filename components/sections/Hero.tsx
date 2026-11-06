@@ -28,12 +28,13 @@ export function Hero() {
   const bottomBarRef = useRef<HTMLDivElement | null>(null);
   const uiLayerRef = useRef<HTMLDivElement | null>(null);
 
-  const [isUiInteractable, setIsUiInteractable] = useState(false);
+  const isUiInteractableRef = useRef(false);
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    const container = containerRef.current;
+    if (!video || !container) return;
 
     // Call ScrollTrigger.refresh() once metadata loads
     const handleLoadedMetadata = () => {
@@ -45,8 +46,23 @@ export function Hero() {
       ScrollTrigger.refresh();
     }
 
+    // Pause hero video when out of viewport to free GPU decoding
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!video) return;
+        if (entry.isIntersecting) {
+          if (video.paused) video.play().catch(() => {});
+        } else {
+          if (!video.paused) video.pause();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      observer.disconnect();
     };
   }, []);
 
@@ -60,7 +76,10 @@ export function Hero() {
     const ctx = gsap.context(() => {
       // Reduced motion: show final framed card state immediately with simple fade, no pinning
       if (prefersReducedMotion) {
-        setIsUiInteractable(true);
+        isUiInteractableRef.current = true;
+        if (uiLayerRef.current) {
+          uiLayerRef.current.style.pointerEvents = "auto";
+        }
         gsap.set(videoCardRef.current, {
           clipPath: isMobile
             ? "inset(12px 12px 12px 12px round 20px)"
@@ -118,7 +137,13 @@ export function Hero() {
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             const p = self.progress;
-            setIsUiInteractable(p >= 0.35);
+            const canInteract = p >= 0.35;
+            if (canInteract !== isUiInteractableRef.current) {
+              isUiInteractableRef.current = canInteract;
+              if (uiLayerRef.current) {
+                uiLayerRef.current.style.pointerEvents = canInteract ? "auto" : "none";
+              }
+            }
           },
         },
       });
@@ -284,11 +309,8 @@ export function Hero() {
           {/* UI Layer (Central Content & Bottom Bar) */}
           <div
             ref={uiLayerRef}
-            aria-hidden={!isUiInteractable && !prefersReducedMotion}
             className={`absolute inset-0 z-20 flex flex-col justify-between p-6 sm:p-9 md:p-12 transition-all duration-150 ${
-              isUiInteractable || prefersReducedMotion
-                ? "pointer-events-auto"
-                : "pointer-events-none"
+              prefersReducedMotion ? "pointer-events-auto" : "pointer-events-none"
             }`}
           >
             {/* Top spacer to balance fixed navbar height */}
@@ -363,7 +385,6 @@ export function Hero() {
             >
               <a
                 href="#universe"
-                tabIndex={isUiInteractable || prefersReducedMotion ? 0 : -1}
                 className="group inline-flex items-center gap-2 hover:text-yellow-golden transition-colors"
               >
                 <span className="w-5 h-5 rounded-full border border-white/25 flex items-center justify-center group-hover:border-yellow-golden transition-colors">

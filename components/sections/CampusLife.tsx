@@ -27,35 +27,35 @@ export function CampusLife() {
     cardElements.forEach((card) => {
       const img = card.querySelector(".campus-card-img");
 
-      gsap.fromTo(
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: card,
+          start: "top 88%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      tl.fromTo(
         card,
         { clipPath: "inset(100% 0 0 0)" },
         {
           clipPath: "inset(0% 0 0 0)",
           duration: 1.0,
           ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-          scrollTrigger: {
-            trigger: card,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        }
+        },
+        0
       );
 
       if (img) {
-        gsap.fromTo(
+        tl.fromTo(
           img,
           { scale: 1.2 },
           {
             scale: 1.0,
             duration: 1.2,
             ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 88%",
-              toggleActions: "play none none none",
-            },
-          }
+          },
+          0
         );
       }
     });

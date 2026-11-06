@@ -40,8 +40,9 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       };
     }
 
-    // Initialize Lenis
+    // Initialize Lenis with autoRaf: false so Lenis and GSAP share strictly ONE ticker loop
     const lenis = new Lenis({
+      autoRaf: false,
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",

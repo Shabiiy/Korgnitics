@@ -6,7 +6,7 @@ export const footerContent = {
     subtext: "Admissions open for academic session 2026–2027. Step into a world where children learn how to think, question, and excel.",
     ctaLabel: "Apply Now",
     ctaHref: "#admissions",
-    backgroundImage: "/assets/reception.png",
+    backgroundImage: "/assets/reception.webp",
   },
   linksCol1: {
     title: "Explore",

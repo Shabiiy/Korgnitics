@@ -14,8 +14,8 @@ export const learnerPathContent = {
   headingAccentLetter: "g",
   headingPart3: "rowth.",
   scrollCue: "Scroll to play the journey",
-  videoSrc: "/assets/Student_Journey.mp4",
-  posterSrc: "/assets/student-journey-poster.jpg",
+  framesPath: "/journey-frames",
+  posterSrc: "/journey-frames/frame_0001.webp",
   stages: [
     {
       number: "01",

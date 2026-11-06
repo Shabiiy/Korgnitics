@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,36 +30,56 @@ export function Navbar() {
   const [isDarkTheme, setIsDarkTheme] = useState(true); // Controls logo swap (white vs indigo)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const activeItemRef = useRef("Home");
+  const isScrolledRef = useRef(false);
+  const isDarkThemeRef = useRef(true);
+  const scrollRafRef = useRef<number | null>(null);
+
   const { lenis, prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const viewportH = window.innerHeight;
+      if (scrollRafRef.current) return;
 
-      // Phase 2 threshold: fade in Nav Pill and Apply Now
-      const scrolled = prefersReducedMotion || scrollY > 140;
-      setIsScrolled(scrolled);
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        const scrollY = window.scrollY;
+        const viewportH = window.innerHeight;
 
-      // Track active section and dark/light background
-      const checkPoint = 160; // 160px from top of viewport
-      let currentSection = SECTION_CONFIG[0];
+        // Phase 2 threshold: fade in Nav Pill and Apply Now
+        const scrolled = prefersReducedMotion || scrollY > 140;
+        if (scrolled !== isScrolledRef.current) {
+          isScrolledRef.current = scrolled;
+          setIsScrolled(scrolled);
+        }
 
-      for (let i = SECTION_CONFIG.length - 1; i >= 0; i--) {
-        const item = SECTION_CONFIG[i];
-        const el = document.getElementById(item.id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= checkPoint && rect.bottom > 0) {
-            currentSection = item;
-            break;
+        // Track active section and dark/light background
+        const checkPoint = 160;
+        let currentSection = SECTION_CONFIG[0];
+
+        for (let i = SECTION_CONFIG.length - 1; i >= 0; i--) {
+          const item = SECTION_CONFIG[i];
+          const el = document.getElementById(item.id);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top <= checkPoint && rect.bottom > 0) {
+              currentSection = item;
+              break;
+            }
           }
         }
-      }
 
-      setActiveItem(currentSection.label);
-      // Hero is always dark (video), otherwise follow section theme
-      setIsDarkTheme(scrollY <= viewportH * 0.9 ? true : currentSection.isDark);
+        if (currentSection.label !== activeItemRef.current) {
+          activeItemRef.current = currentSection.label;
+          setActiveItem(currentSection.label);
+        }
+
+        const dark = scrollY <= viewportH * 0.9 ? true : currentSection.isDark;
+        if (dark !== isDarkThemeRef.current) {
+          isDarkThemeRef.current = dark;
+          setIsDarkTheme(dark);
+        }
+      });
     };
 
     handleScroll();
@@ -71,6 +91,9 @@ export function Navbar() {
     }
 
     return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
       if (lenis) {
         lenis.off("scroll", handleScroll);
       }
@@ -87,8 +110,8 @@ export function Navbar() {
     }
   }, [mobileMenuOpen]);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, label: string) => {
-    e.preventDefault();
+  const handleNavClick = (e: React.MouseEvent | undefined, href: string, label: string) => {
+    if (e && e.preventDefault) e.preventDefault();
     setActiveItem(label);
     setMobileMenuOpen(false);
 

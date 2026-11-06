@@ -22,18 +22,38 @@ export function Activities() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const { prefersReducedMotion } = useSmoothScroll();
 
-  // Custom play cursor following pointer over card
+  // Custom play cursor directly updating style without React re-render
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || !cursorRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
-    setCursorPos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cursorRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
   };
+
+  // Pause video when off screen
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!video) return;
+        if (entry.isIntersecting) {
+          if (video.paused) video.play().catch(() => {});
+        } else {
+          if (!video.paused) video.pause();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (prefersReducedMotion || !cardRef.current) return;
@@ -123,11 +143,7 @@ export function Activities() {
           {isHovered && !prefersReducedMotion && (
             <div
               ref={cursorRef}
-              className="hidden lg:flex pointer-events-none absolute z-30 w-16 h-16 rounded-full bg-yellow-golden text-indigo-deep font-sans font-medium text-xs tracking-wider uppercase items-center justify-center shadow-xl -translate-x-1/2 -translate-y-1/2 transition-transform duration-75 ease-out"
-              style={{
-                left: `${cursorPos.x}px`,
-                top: `${cursorPos.y}px`,
-              }}
+              className="hidden lg:flex pointer-events-none absolute z-30 top-0 left-0 w-16 h-16 rounded-full bg-yellow-golden text-indigo-deep font-sans font-medium text-xs tracking-wider uppercase items-center justify-center shadow-xl will-change-transform"
             >
               Play
             </div>

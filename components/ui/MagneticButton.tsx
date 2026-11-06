@@ -6,7 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 interface MagneticButtonProps {
   children: React.ReactNode;
   href?: string;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   variant?: "primary" | "secondary" | "outline" | "white";
   isMagnetic?: boolean;
   className?: string;

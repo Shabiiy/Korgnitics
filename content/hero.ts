@@ -12,6 +12,6 @@ export const heroContent = {
   scrollCueText: "Scroll to explore",
   tagline: "Cognitive Excellence · Character · Future-Ready",
   videoSrc: "/assets/hero-campus-optimized.mp4",
-  posterSrc: "/assets/hero-poster.jpg",
+  posterSrc: "/assets/hero-poster.webp",
 };
 

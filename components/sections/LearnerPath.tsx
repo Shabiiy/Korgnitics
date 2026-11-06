@@ -10,52 +10,283 @@ import { useSmoothScroll } from "@/components/providers/SmoothScrollProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
+const TOTAL_FRAMES = 191;
+
 export function LearnerPath() {
   const containerRef = useRef<HTMLElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const headerUiRef = useRef<HTMLDivElement | null>(null);
   const stageCardRef = useRef<HTMLDivElement | null>(null);
-  const timelineBarRef = useRef<HTMLDivElement | null>(null);
+  const stageNumberRef = useRef<HTMLSpanElement | null>(null);
+  const stageGradesRef = useRef<HTMLSpanElement | null>(null);
+  const stageTitleRef = useRef<HTMLHeadingElement | null>(null);
+  const stageDescRef = useRef<HTMLParagraphElement | null>(null);
+  const stageMilestonesRef = useRef<HTMLDivElement | null>(null);
+  const stageLabelsRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const segmentFillsRef = useRef<(HTMLDivElement | null)[]>([]);
   const replayBtnRef = useRef<HTMLDivElement | null>(null);
 
-  const [activeStageIndex, setActiveStageIndex] = useState(0);
-  const [normalizedProgress, setNormalizedProgress] = useState(0); // 0.0 to 1.0 within Phase C
-  const [scrollPhase, setScrollPhase] = useState<"A" | "B" | "C" | "D" | "E">("A");
   const [isReplaying, setIsReplaying] = useState(false);
-  const [isPlayingManual, setIsPlayingManual] = useState(false); // For reduced motion
+  const [isPlayingManual, setIsPlayingManual] = useState(false);
 
   const { lenis, prefersReducedMotion } = useSmoothScroll();
 
-  // Scrub targets for rAF lerp loop (decoupled from scroll event)
-  const targetVideoProgressRef = useRef(0);
+  // Frame cache and progressive loading refs
+  const framesRef = useRef<(ImageBitmap | HTMLImageElement | null)[]>(
+    new Array(TOTAL_FRAMES).fill(null)
+  );
+  const isMobileRef = useRef(false);
+  const isUnmountedRef = useRef(false);
+  const isInViewRef = useRef(false);
   const isReplayingRef = useRef(false);
+  const lastDrawnFrameRef = useRef(-1);
+
+  // Scrub targets for rAF lerp loop (completely decoupled from React state)
+  const targetProgressRef = useRef(0); // 0.0 to 1.0 (Phase C)
+  const lerpedProgressRef = useRef(0);
+  const currentStageIdxRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
 
   // -------------------------------------------------------------
-  // Clean rAF loop: Lerps currentTime towards targetVideoProgress
-  // Factor ~0.10, seeking threshold > 0.03s to eliminate thrashing
+  // Draw frame on canvas with object-fit: cover logic
+  // -------------------------------------------------------------
+  const drawFrame = useCallback((frameIdx: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    let img = framesRef.current[frameIdx];
+
+    // If target frame not loaded yet, fallback to nearest loaded frame
+    if (!img) {
+      for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
+        if (frameIdx - offset >= 0 && framesRef.current[frameIdx - offset]) {
+          img = framesRef.current[frameIdx - offset];
+          break;
+        }
+        if (frameIdx + offset < TOTAL_FRAMES && framesRef.current[frameIdx + offset]) {
+          img = framesRef.current[frameIdx + offset];
+          break;
+        }
+      }
+    }
+
+    if (!img) return;
+
+    const cW = canvas.width;
+    const cH = canvas.height;
+    const iW = img.width;
+    const iH = img.height;
+
+    // Cover calculations
+    const scale = Math.max(cW / iW, cH / iH);
+    const drawW = iW * scale;
+    const drawH = iH * scale;
+    const dx = (cW - drawW) * 0.5;
+    const dy = (cH - drawH) * 0.5;
+
+    ctx.drawImage(img, dx, dy, drawW, drawH);
+    lastDrawnFrameRef.current = frameIdx;
+  }, []);
+
+  // -------------------------------------------------------------
+  // Update stage card content with quick cross-fade
+  // -------------------------------------------------------------
+  const updateStageCard = useCallback((stageIdx: number) => {
+    const stage = learnerPathContent.stages[stageIdx];
+    if (!stage) return;
+
+    // Update timeline step labels
+    stageLabelsRef.current.forEach((label, idx) => {
+      if (!label) return;
+      if (idx === stageIdx) {
+        label.classList.remove("text-white/60");
+        label.classList.add("text-yellow-golden");
+      } else {
+        label.classList.remove("text-yellow-golden");
+        label.classList.add("text-white/60");
+      }
+    });
+
+    const card = stageCardRef.current;
+    if (!card) return;
+
+    // Quick cross-fade
+    gsap.to(card, {
+      opacity: 0.25,
+      y: 4,
+      duration: 0.1,
+      ease: "power1.out",
+      onComplete: () => {
+        if (stageNumberRef.current) stageNumberRef.current.textContent = `Stage ${stage.number}`;
+        if (stageGradesRef.current) stageGradesRef.current.textContent = stage.grades;
+        if (stageTitleRef.current) stageTitleRef.current.textContent = stage.title;
+        if (stageDescRef.current) stageDescRef.current.textContent = stage.description;
+
+        if (stageMilestonesRef.current) {
+          stageMilestonesRef.current.innerHTML = stage.milestones
+            .map(
+              (m) =>
+                `<span class="text-[11px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/10 font-sans">${m}</span>`
+            )
+            .join("");
+        }
+
+        gsap.to(card, {
+          opacity: 1,
+          y: 0,
+          duration: 0.15,
+          ease: "power1.out",
+        });
+      },
+    });
+  }, []);
+
+  // -------------------------------------------------------------
+  // Preload frames: Frame 0 immediately, rest in background batches
+  // -------------------------------------------------------------
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    const mobile = window.innerWidth < 768;
+    isMobileRef.current = mobile;
+    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
+
+    const getPath = (idx: number) =>
+      `${framesDir}/frame_${String(idx + 1).padStart(4, "0")}.webp`;
+
+    // 1. Immediately load frame 0 for poster display
+    const firstImg = new Image();
+    firstImg.src = getPath(0);
+    firstImg.onload = async () => {
+      if (isUnmountedRef.current) return;
+      try {
+        const bmp = await createImageBitmap(firstImg);
+        framesRef.current[0] = bmp;
+      } catch {
+        framesRef.current[0] = firstImg;
+      }
+      drawFrame(0);
+    };
+
+    // 2. Background progressive batch loader
+    const loadRemainingFrames = async () => {
+      const batchSize = 6;
+      for (let i = 1; i < TOTAL_FRAMES; i += batchSize) {
+        if (isUnmountedRef.current) break;
+        const batch: Promise<void>[] = [];
+
+        for (let j = i; j < Math.min(TOTAL_FRAMES, i + batchSize); j++) {
+          batch.push(
+            (async (index) => {
+              try {
+                const res = await fetch(getPath(index));
+                const blob = await res.blob();
+                const bmp = await createImageBitmap(blob);
+                if (!isUnmountedRef.current) {
+                  framesRef.current[index] = bmp;
+                }
+              } catch {
+                // Fallback to Image
+                const img = new Image();
+                img.src = getPath(index);
+                img.onload = () => {
+                  if (!isUnmountedRef.current) {
+                    framesRef.current[index] = img;
+                  }
+                };
+              }
+            })(j)
+          );
+        }
+
+        await Promise.all(batch);
+      }
+    };
+
+    // Start background load after a brief tick to not block main thread
+    const timer = setTimeout(loadRemainingFrames, 60);
+
+    return () => {
+      isUnmountedRef.current = true;
+      clearTimeout(timer);
+    };
+  }, [drawFrame]);
+
+  // -------------------------------------------------------------
+  // Canvas resize handler (DPR capped at 2)
+  // -------------------------------------------------------------
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      const newW = Math.round(rect.width * dpr);
+      const newH = Math.round(rect.height * dpr);
+      if (canvas.width !== newW || canvas.height !== newH) {
+        canvas.width = newW;
+        canvas.height = newH;
+      }
+      if (lastDrawnFrameRef.current >= 0) {
+        drawFrame(lastDrawnFrameRef.current);
+      } else {
+        drawFrame(0);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => window.removeEventListener("resize", handleResize);
+  }, [drawFrame]);
+
+  // -------------------------------------------------------------
+  // Component-owned rAF lerp loop:
+  // - Pauses when section is not in view
+  // - Lerps target progress (factor 0.15)
+  // - Redraws canvas ONLY when rounded frame index changes
+  // - Directly drives timeline transform: scaleX() continuously
   // -------------------------------------------------------------
   useEffect(() => {
     if (prefersReducedMotion) return;
 
-    let currentVideoTime = 0;
-    let targetVideoTime = 0;
-
     const tick = () => {
-      const video = videoRef.current;
-      if (video && video.duration && !isReplayingRef.current) {
-        const dur = video.duration;
-        targetVideoTime = targetVideoProgressRef.current * dur;
+      if (
+        (isInViewRef.current || isReplayingRef.current) &&
+        !prefersReducedMotion
+      ) {
+        const target = targetProgressRef.current;
+        const current = lerpedProgressRef.current;
+        const nextProg = current + (target - current) * 0.15;
+        lerpedProgressRef.current = nextProg;
 
-        // Lerp factor ~0.10
-        currentVideoTime += (targetVideoTime - currentVideoTime) * 0.1;
+        // 1. Draw frame if index changed
+        const targetFrame = Math.min(
+          TOTAL_FRAMES - 1,
+          Math.max(0, Math.round(nextProg * (TOTAL_FRAMES - 1)))
+        );
+        if (targetFrame !== lastDrawnFrameRef.current) {
+          drawFrame(targetFrame);
+        }
 
-        // Only seek when delta > 0.03s
-        if (Math.abs(video.currentTime - currentVideoTime) > 0.03) {
-          video.currentTime = Math.max(0, Math.min(dur - 0.02, currentVideoTime));
+        // 2. Smoothly fill timeline bar segments with transform: scaleX()
+        for (let i = 0; i < 4; i++) {
+          const fillEl = segmentFillsRef.current[i];
+          if (fillEl) {
+            const fill = Math.max(0, Math.min(1, nextProg * 4 - i));
+            fillEl.style.transform = `scaleX(${fill})`;
+          }
+        }
+
+        // 3. Stage index change detection
+        const stageIdx = Math.min(3, Math.floor(nextProg * 4));
+        if (stageIdx !== currentStageIdxRef.current) {
+          currentStageIdxRef.current = stageIdx;
+          updateStageCard(stageIdx);
         }
       }
+
       rafIdRef.current = requestAnimationFrame(tick);
     };
 
@@ -67,28 +298,58 @@ export function LearnerPath() {
         rafIdRef.current = null;
       }
     };
-  }, [prefersReducedMotion]);
+  }, [prefersReducedMotion, drawFrame, updateStageCard]);
 
   // -------------------------------------------------------------
-  // GSAP ScrollTrigger Sequence: Phase A -> B -> C -> D -> E
+  // Uniform Expand & Shrink function (PART 1 - Exact Hero Match)
+  // -------------------------------------------------------------
+  const applyUniformClip = useCallback((p: number) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const isMobile = window.innerWidth < 768;
+    const cardInset = isMobile ? 12 : 20; // Exact match to Hero
+    const cardRadius = isMobile ? 20 : 24; // Exact match to Hero
+
+    let inset = 0;
+    let radius = 0;
+
+    if (p < 0.2) {
+      // Phase B: Expand (0.0 -> 0.20)
+      const pExp = Math.max(0, Math.min(1, p / 0.2));
+      inset = Math.round((1 - pExp) * cardInset);
+      radius = Math.round((1 - pExp) * cardRadius);
+    } else if (p <= 0.8) {
+      // Phase C: Full-bleed
+      inset = 0;
+      radius = 0;
+    } else {
+      // Phase D: Shrink (0.80 -> 1.00)
+      const pShr = Math.max(0, Math.min(1, (p - 0.8) / 0.2));
+      inset = Math.round(pShr * cardInset);
+      radius = Math.round(pShr * cardRadius);
+    }
+
+    wrapper.style.clipPath = `inset(${inset}px round ${radius}px)`;
+  }, []);
+
+  // -------------------------------------------------------------
+  // GSAP ScrollTrigger Master Timeline
   // -------------------------------------------------------------
   useEffect(() => {
     const container = containerRef.current;
     const wrapper = wrapperRef.current;
-    const video = videoRef.current;
-    if (!container || !wrapper || !video) return;
+    if (!container || !wrapper) return;
 
     if (prefersReducedMotion) return;
 
     const isMobile = window.innerWidth < 1024;
-    const initialInset = isMobile
-      ? "inset(16px 16px 16px 16px round 20px)"
-      : "inset(28px 44px 28px 44px round 24px)";
+    const initialInset = window.innerWidth < 768
+      ? "inset(12px round 20px)"
+      : "inset(20px round 24px)";
 
     const siteHeader = document.querySelector("header");
 
     const ctx = gsap.context(() => {
-      // Set initial Phase A card geometry
       gsap.set(wrapper, {
         clipPath: initialInset,
         willChange: "clip-path",
@@ -102,7 +363,7 @@ export function LearnerPath() {
         gsap.set(replayBtnRef.current, { opacity: 0, y: 16, pointerEvents: "none" });
       }
 
-      // Master Timeline pinned for ~500vh (3.5x on mobile)
+      // Master Timeline pinned for ~500vh
       const tl = gsap.timeline({
         scrollTrigger: {
           id: "journey-video",
@@ -114,48 +375,30 @@ export function LearnerPath() {
           anticipatePin: 1,
           scrub: 0.6,
           invalidateOnRefresh: true,
+          onToggle: (self) => {
+            isInViewRef.current = self.isActive;
+          },
           onUpdate: (self) => {
             if (isReplayingRef.current) return;
             const p = self.progress;
 
-            // Phase detection & mapping
-            if (p < 0.2) {
-              setScrollPhase("A");
-              targetVideoProgressRef.current = 0;
-              setNormalizedProgress(0);
-              setActiveStageIndex(0);
-            } else if (p <= 0.8) {
-              setScrollPhase("C");
-              // Map middle 60% of scroll (0.2 -> 0.8) to video duration (0.0 -> 1.0)
-              const vProg = Math.max(0, Math.min(1, (p - 0.2) / 0.6));
-              targetVideoProgressRef.current = vProg;
-              setNormalizedProgress(vProg);
+            // Apply uniform inset clip-path
+            applyUniformClip(p);
 
-              // 4 stages evenly spaced across video progress
-              const stageIdx = Math.min(3, Math.floor(vProg * 4));
-              setActiveStageIndex(stageIdx);
+            // Progress mapping to middle 60% of scroll (0.2 -> 0.8)
+            if (p < 0.2) {
+              targetProgressRef.current = 0;
+            } else if (p <= 0.8) {
+              const vProg = (p - 0.2) / 0.6;
+              targetProgressRef.current = Math.max(0, Math.min(1, vProg));
             } else {
-              setScrollPhase("D");
-              targetVideoProgressRef.current = 1.0;
-              setNormalizedProgress(1.0);
-              setActiveStageIndex(3);
+              targetProgressRef.current = 1.0;
             }
           },
         },
       });
 
-      // 1. Phase B (First ~20% of scroll, 0.0 -> 0.20): Expand from framed card to edge-to-edge
-      tl.to(
-        wrapper,
-        {
-          clipPath: "inset(0px 0px 0px 0px round 0px)",
-          ease: "power2.inOut",
-          duration: 0.2,
-        },
-        0
-      );
-
-      // Fade out header UI (tag, heading, scroll cue)
+      // 1. Phase B (0.0 -> 0.20): Fade out top header UI and fixed site navbar
       if (headerUiRef.current) {
         tl.to(
           headerUiRef.current,
@@ -163,13 +406,12 @@ export function LearnerPath() {
             opacity: 0,
             y: -24,
             ease: "power1.out",
-            duration: 0.15,
+            duration: 0.16,
           },
           0
         );
       }
 
-      // Fade out fixed site navbar for immersive video
       if (siteHeader) {
         tl.to(
           siteHeader,
@@ -183,28 +425,10 @@ export function LearnerPath() {
         );
       }
 
-      // 2. Phase C (Middle ~60%, 0.20 -> 0.80): Hold full-bleed, video scrubs via rAF
-      // Keep empty duration slot on timeline for scrub span
-      tl.to(
-        {},
-        {
-          duration: 0.6,
-        },
-        0.2
-      );
+      // 2. Phase C (0.20 -> 0.80): Middle scrub duration span
+      tl.to({}, { duration: 0.6 }, 0.2);
 
-      // 3. Phase D (Last ~20%, 0.80 -> 1.00): Shrink back into framed card with cream border
-      tl.to(
-        wrapper,
-        {
-          clipPath: initialInset,
-          ease: "power2.inOut",
-          duration: 0.2,
-        },
-        0.8
-      );
-
-      // Fade in header UI and fixed site navbar
+      // 3. Phase D (0.80 -> 1.00): Fade in header UI and fixed site navbar
       if (headerUiRef.current) {
         tl.to(
           headerUiRef.current,
@@ -231,7 +455,7 @@ export function LearnerPath() {
         );
       }
 
-      // 4. Phase E (End): Replay button fades in at end of shrink
+      // 4. Phase E (0.88 -> 1.00): Replay button fades in at end of shrink
       if (replayBtnRef.current) {
         tl.to(
           replayBtnRef.current,
@@ -251,19 +475,17 @@ export function LearnerPath() {
       ctx.revert();
       const st = ScrollTrigger.getById("journey-video");
       if (st) st.kill(true);
-      // Ensure navbar is visible if unmounting mid-scroll
       if (siteHeader) gsap.set(siteHeader, { opacity: 1, pointerEvents: "auto" });
     };
-  }, [prefersReducedMotion]);
+  }, [prefersReducedMotion, applyUniformClip]);
 
   // -------------------------------------------------------------
-  // Phase E: Replay Video with scroll lock, expand, autoplay, shrink
+  // Phase E: Replay flow advancing frames at 24fps
   // -------------------------------------------------------------
   const handleReplayClick = useCallback(async () => {
     const container = containerRef.current;
     const wrapper = wrapperRef.current;
-    const video = videoRef.current;
-    if (!container || !wrapper || !video || isReplayingRef.current) return;
+    if (!container || !wrapper || isReplayingRef.current) return;
 
     setIsReplaying(true);
     isReplayingRef.current = true;
@@ -273,7 +495,7 @@ export function LearnerPath() {
       lenis.stop();
     }
 
-    // 2. Smooth-scroll back to the start of the section
+    // 2. Smooth-scroll back to section anchor
     const st = ScrollTrigger.getById("journey-video");
     const targetScroll = st ? st.start : container.offsetTop;
 
@@ -287,7 +509,7 @@ export function LearnerPath() {
 
     // 3. Expand edges to full screen again
     gsap.to(wrapper, {
-      clipPath: "inset(0px 0px 0px 0px round 0px)",
+      clipPath: "inset(0px round 0px)",
       duration: 0.7,
       ease: "power2.inOut",
     });
@@ -301,44 +523,55 @@ export function LearnerPath() {
 
     await new Promise((r) => setTimeout(r, 700));
 
-    // 4. Play video from 0 automatically in real time (muted, normal speed)
-    video.currentTime = 0;
-    video.playbackRate = 1.0;
-
-    const dur = video.duration || 7.96;
+    // 4. Advance frame index in real time at 24fps on the canvas
     const startTime = performance.now();
+    const durationMs = (TOTAL_FRAMES / 24) * 1000;
 
-    const trackAutoplay = () => {
-      if (!isReplayingRef.current) return;
-      const elapsed = (performance.now() - startTime) / 1000;
-      const prog = Math.min(1, elapsed / dur);
-      setNormalizedProgress(prog);
-      const stageIdx = Math.min(3, Math.floor(prog * 4));
-      setActiveStageIndex(stageIdx);
+    await new Promise<void>((resolve) => {
+      const step = (now: number) => {
+        if (!isReplayingRef.current) {
+          resolve();
+          return;
+        }
+        const elapsed = now - startTime;
+        const prog = Math.min(1, elapsed / durationMs);
 
-      if (elapsed < dur - 0.05 && !video.ended) {
-        requestAnimationFrame(trackAutoplay);
-      }
-    };
+        targetProgressRef.current = prog;
+        lerpedProgressRef.current = prog;
 
-    try {
-      await video.play();
-      requestAnimationFrame(trackAutoplay);
-    } catch {
-      // Fallback if autoplay restricted
-    }
+        const frameIdx = Math.min(TOTAL_FRAMES - 1, Math.floor(prog * TOTAL_FRAMES));
+        drawFrame(frameIdx);
 
-    // Wait for video completion
-    await new Promise((r) => setTimeout(r, dur * 1000 + 100));
+        // Update timeline bar fills
+        for (let i = 0; i < 4; i++) {
+          const fillEl = segmentFillsRef.current[i];
+          if (fillEl) {
+            const fill = Math.max(0, Math.min(1, prog * 4 - i));
+            fillEl.style.transform = `scaleX(${fill})`;
+          }
+        }
 
-    // 5. Shrink edges back into framed card
-    const isMobile = window.innerWidth < 1024;
-    const initialInset = isMobile
-      ? "inset(16px 16px 16px 16px round 20px)"
-      : "inset(28px 44px 28px 44px round 24px)";
+        const stageIdx = Math.min(3, Math.floor(prog * 4));
+        if (stageIdx !== currentStageIdxRef.current) {
+          currentStageIdxRef.current = stageIdx;
+          updateStageCard(stageIdx);
+        }
+
+        if (elapsed < durationMs) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(step);
+    });
+
+    // 5. Shrink back into framed card
+    const isMobile = window.innerWidth < 768;
+    const finalInset = isMobile ? "inset(12px round 20px)" : "inset(20px round 24px)";
 
     gsap.to(wrapper, {
-      clipPath: initialInset,
+      clipPath: finalInset,
       duration: 0.7,
       ease: "power2.inOut",
     });
@@ -347,7 +580,12 @@ export function LearnerPath() {
       gsap.to(headerUiRef.current, { opacity: 1, duration: 0.5 });
     }
     if (replayBtnRef.current) {
-      gsap.to(replayBtnRef.current, { opacity: 1, pointerEvents: "auto", duration: 0.5, delay: 0.2 });
+      gsap.to(replayBtnRef.current, {
+        opacity: 1,
+        pointerEvents: "auto",
+        duration: 0.5,
+        delay: 0.2,
+      });
     }
 
     await new Promise((r) => setTimeout(r, 750));
@@ -358,22 +596,14 @@ export function LearnerPath() {
     }
     setIsReplaying(false);
     isReplayingRef.current = false;
-  }, [lenis]);
+  }, [lenis, drawFrame, updateStageCard]);
 
-  // Reduced motion: manual play/pause handler
-  const handleTogglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      video.play();
-      setIsPlayingManual(true);
-    } else {
-      video.pause();
-      setIsPlayingManual(false);
-    }
+  // Reduced motion manual play/pause
+  const handleToggleManualPlay = () => {
+    setIsPlayingManual((prev) => !prev);
   };
 
-  const currentStage = learnerPathContent.stages[activeStageIndex];
+  const initialStage = learnerPathContent.stages[0];
 
   return (
     <section
@@ -382,38 +612,31 @@ export function LearnerPath() {
       className="relative w-full h-[100svh] bg-yellow-cream overflow-hidden flex items-center justify-center"
     >
       {/* 
-        Video Wrapper:
-        - Mirrors hero expand/shrink in reverse:
-          Starts as rounded card on cream background, expands edge-to-edge (0.0 -> 0.2),
-          holds full-bleed during middle 60% scrub, shrinks back to card on cream (0.8 -> 1.0)
+        Canvas Wrapper (Part 1 & 2):
+        - Stays strictly pinned at 100vw x 100vh and is NEVER scaled, resized or moved.
+        - Only clipPath changes: inset = lerp(cardInsetPx, 0, progress) with border radius = lerp(24, 0, progress).
       */}
       <div
         ref={wrapperRef}
-        className="absolute inset-0 w-full h-full overflow-hidden bg-black select-none"
+        className="absolute inset-0 w-full h-full overflow-hidden bg-black select-none pointer-events-none"
         style={{ willChange: "clip-path" }}
       >
-        {/* Video Element (Natural colors, NO blue/indigo overlays) */}
-        <video
-          ref={videoRef}
-          src="/assets/Student_Journey_scrub.mp4"
-          poster={learnerPathContent.posterSrc}
-          muted
-          playsInline
-          preload="auto"
-          className="w-full h-full object-cover"
+        {/* High performance Canvas rendering with object-fit: cover */}
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full block"
         />
 
-        {/* Faint neutral bottom gradient (max 25% black) ONLY behind the timeline bar */}
+        {/* Faint neutral bottom gradient (max 25% black) ONLY behind timeline bar */}
         <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/25 via-black/10 to-transparent pointer-events-none z-10" />
 
-        {/* UI Overlay Container (Edge-to-edge flex layout inside the video) */}
+        {/* UI Overlay Container */}
         <div className="absolute inset-0 z-20 flex flex-col justify-between p-6 sm:p-10 md:p-12 pointer-events-none">
-          {/* Top Header Row (Tag, Heading, Scroll Cue) - Fades out during expand, spaced cleanly below nav */}
+          {/* Top Header Row (Tag, Heading, Scroll Cue) - Spaced cleanly below navbar */}
           <div ref={headerUiRef} className="w-full pt-14 sm:pt-16 pointer-events-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <TagChip variant="yellow">{learnerPathContent.sectionBadge}</TagChip>
 
-              {/* Scroll Cue Badge */}
               <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 backdrop-blur-md text-white text-xs tracking-wide border border-white/15">
                 <ChevronDown className="w-3.5 h-3.5 text-yellow-golden animate-bounce" />
                 <span>{learnerPathContent.scrollCue}</span>
@@ -429,42 +652,63 @@ export function LearnerPath() {
             </h2>
           </div>
 
-          {/* Middle Stage Content Card: Neutral dark frosted glass (rgba(20,20,40,0.45) + blur) */}
+          {/* 
+            PART 3: Smaller Stage Info Card:
+            - max-width: 400px, padding: 20px, radius: 16px.
+            - Title 26px, body 13px with line-height 1.5, tags 11px with tighter padding.
+            - Frosted glass with 12px blur max.
+            - Positioned bottom-left, safely clear of the child's face.
+          */}
           <div
             ref={stageCardRef}
-            className="my-auto pointer-events-auto max-w-lg rounded-[20px] p-5 sm:p-7 border border-white/15 shadow-2xl transition-all duration-300"
+            className="pointer-events-auto max-w-[380px] sm:max-w-[400px] p-5 rounded-[16px] border border-white/15 shadow-2xl transition-all duration-200"
             style={{
               backgroundColor: "rgba(20, 20, 40, 0.45)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
             {/* Top Stage Header */}
-            <div className="flex items-center justify-between text-yellow-golden text-sm font-sans font-medium mb-2">
-              <span className="tracking-wide uppercase text-xs sm:text-sm font-mono">
-                Stage {currentStage.number}
+            <div className="flex items-center justify-between text-yellow-golden text-sm font-sans font-medium mb-1.5">
+              <span
+                ref={stageNumberRef}
+                className="tracking-wide uppercase text-xs sm:text-sm font-mono"
+              >
+                Stage {initialStage.number}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-yellow-golden/20 text-yellow-golden text-xs font-mono">
-                {currentStage.grades}
+              <span
+                ref={stageGradesRef}
+                className="px-2 py-0.5 rounded-full bg-yellow-golden/20 text-yellow-golden text-[11px] font-mono"
+              >
+                {initialStage.grades}
               </span>
             </div>
 
-            {/* Stage Title */}
-            <h3 className="text-2xl sm:text-3xl font-sans font-light tracking-tight text-white mb-2 transition-all duration-200">
-              {currentStage.title}
+            {/* Stage Title (26px) */}
+            <h3
+              ref={stageTitleRef}
+              className="text-[24px] sm:text-[26px] font-sans font-light tracking-tight text-white mb-1.5 leading-tight"
+            >
+              {initialStage.title}
             </h3>
 
-            {/* Stage Description */}
-            <p className="text-xs sm:text-sm text-[#E4E3F5]/90 leading-relaxed font-sans mb-4">
-              {currentStage.description}
+            {/* Stage Description (13px, 1.5 line-height) */}
+            <p
+              ref={stageDescRef}
+              className="text-[13px] leading-[1.5] text-[#E4E3F5]/90 font-sans mb-3"
+            >
+              {initialStage.description}
             </p>
 
-            {/* Milestone Chips */}
-            <div className="flex flex-wrap gap-1.5 pt-3 border-t border-white/10">
-              {currentStage.milestones.map((milestone) => (
+            {/* Milestone Chips (11px, tighter padding) */}
+            <div
+              ref={stageMilestonesRef}
+              className="flex flex-wrap gap-1.5 pt-2.5 border-t border-white/10"
+            >
+              {initialStage.milestones.map((milestone) => (
                 <span
                   key={milestone}
-                  className="text-[11px] px-2.5 py-0.5 rounded-[6px] bg-white/10 text-white/90 border border-white/10 font-sans"
+                  className="text-[11px] px-2 py-0.5 rounded-[4px] bg-white/10 text-white/90 border border-white/10 font-sans"
                 >
                   {milestone}
                 </span>
@@ -472,9 +716,9 @@ export function LearnerPath() {
             </div>
           </div>
 
-          {/* Bottom Area: Replay Button + 4-Step Timeline Bar */}
+          {/* Bottom Area: Replay Button + 4-Step Continuous Timeline Bar (Part 3) */}
           <div className="w-full flex flex-col gap-4 pointer-events-auto z-20">
-            {/* Replay Video Button (Phase E - fades in at end of shrink) */}
+            {/* Replay Video Button */}
             <div ref={replayBtnRef} className="flex justify-start">
               <button
                 type="button"
@@ -490,64 +734,57 @@ export function LearnerPath() {
               </button>
             </div>
 
-            {/* 4-Step Timeline Progress Bar */}
-            <div ref={timelineBarRef} className="w-full">
+            {/* 
+              4-Step Timeline Bar:
+              - Fill driven by transform: scaleX() from rAF lerped progress
+              - ZERO CSS width transitions, continuous and silky smooth
+            */}
+            <div className="w-full">
               <div className="grid grid-cols-4 gap-2 sm:gap-4">
-                {learnerPathContent.stages.map((stage, idx) => {
-                  const isActive = idx === activeStageIndex;
-                  const isPast = idx < activeStageIndex;
-                  const startProg = idx * 0.25;
-                  const segProgress = Math.max(
-                    0,
-                    Math.min(1, (normalizedProgress - startProg) / 0.25)
-                  );
-
-                  return (
-                    <div
-                      key={stage.number}
-                      className="flex flex-col gap-1.5 select-none"
-                    >
-                      {/* Bar Fill */}
-                      <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-yellow-golden transition-all duration-100 ease-out"
-                          style={{
-                            width: isPast ? "100%" : isActive ? `${segProgress * 100}%` : "0%",
-                          }}
-                        />
-                      </div>
-
-                      {/* Stage Label */}
-                      <div className="flex items-center justify-between text-[11px] sm:text-xs">
-                        <span
-                          className={`font-mono font-medium ${
-                            isActive ? "text-yellow-golden" : "text-white/60"
-                          }`}
-                        >
-                          {stage.number}
-                        </span>
-                        <span
-                          className={`hidden sm:inline font-sans ${
-                            isActive ? "text-white font-medium" : "text-white/50"
-                          }`}
-                        >
-                          {stage.grades}
-                        </span>
-                      </div>
+                {learnerPathContent.stages.map((stage, idx) => (
+                  <div key={stage.number} className="flex flex-col gap-1.5 select-none">
+                    <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        ref={(el) => {
+                          segmentFillsRef.current[idx] = el;
+                        }}
+                        className="h-full bg-yellow-golden origin-left"
+                        style={{
+                          transform: "scaleX(0)",
+                          transformOrigin: "left",
+                          willChange: "transform",
+                        }}
+                      />
                     </div>
-                  );
-                })}
+
+                    <div className="flex items-center justify-between text-[11px] sm:text-xs">
+                      <span
+                        ref={(el) => {
+                          stageLabelsRef.current[idx] = el;
+                        }}
+                        className={`font-mono font-medium ${
+                          idx === 0 ? "text-yellow-golden" : "text-white/60"
+                        }`}
+                      >
+                        {stage.number}
+                      </span>
+                      <span className="hidden sm:inline font-sans text-white/50">
+                        {stage.grades}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Reduced Motion Controls: Standard Play/Pause Button */}
+        {/* Reduced Motion Controls */}
         {prefersReducedMotion && (
           <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
             <button
               type="button"
-              onClick={handleTogglePlay}
+              onClick={handleToggleManualPlay}
               className="p-3 rounded-full bg-yellow-golden text-indigo-deep shadow-lg hover:brightness-105"
               aria-label={isPlayingManual ? "Pause video" : "Play video"}
             >

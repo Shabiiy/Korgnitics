@@ -33,7 +33,7 @@ export const campusLifeContent = {
       id: "energy-arena",
       title: "Energy Arena",
       subtitle: "Multi-sport athletic complex for vigor and team sport",
-      imageSrc: "/assets/football_ground.png",
+      imageSrc: "/assets/football_ground.webp",
       imageAlt: "Sprawling athletic turf and outdoor sports complex",
       facilities: ["Basketball Court", "Volleyball", "Throwball", "Pickleball", "Skating Rink", "Athletic Track"],
       theme: "indigo",
