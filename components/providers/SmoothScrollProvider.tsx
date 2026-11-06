@@ -43,12 +43,12 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
     // Initialize Lenis with one constant scroll feel (FIX 1)
     const lenis = new Lenis({
       autoRaf: false,
-      lerp: 0.095, // Constant linear momentum (0.09 to 0.1)
+      lerp: 0.1, // Smooth linear momentum (0.1)
       wheelMultiplier: 1.0,
       smoothWheel: true,
       orientation: "vertical",
       gestureOrientation: "vertical",
-      touchMultiplier: 1.5,
+      touchMultiplier: 1.2,
     });
 
     lenisRef.current = lenis;

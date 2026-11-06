@@ -49,7 +49,7 @@ export function Universe() {
   const miniTitleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const expandedTextRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const { prefersReducedMotion } = useSmoothScroll();
+  const { lenis, prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -219,18 +219,42 @@ export function Universe() {
           }
         });
 
+        const pinDuration = window.innerHeight * 2.5;
+
+        // Speed Ramp Ahead of Pin: Smoothly decelerate scroll velocity as section approaches
+        // (Ramps wheelMultiplier 1.0 -> 0.65 across the viewport as the section enters)
+        ScrollTrigger.create({
+          trigger: section,
+          start: "top bottom",
+          end: "top top",
+          scrub: true,
+          onUpdate: (self) => {
+            if (!lenis) return;
+            const eased = 1.0 - 0.35 * Math.pow(self.progress, 1.2);
+            lenis.options.wheelMultiplier = eased;
+          },
+          onLeave: () => {
+            if (lenis) lenis.options.wheelMultiplier = 0.65;
+          },
+          onLeaveBack: () => {
+            if (lenis) lenis.options.wheelMultiplier = 1.0;
+          },
+        });
+
         // Master Timeline pinned for ~250vh with 3 sequential segments (1.0 duration each)
         const masterTl = gsap.timeline({
           scrollTrigger: {
             trigger: section,
             start: "top top",
-            end: () => "+=" + window.innerHeight * 2.5,
+            end: () => "+=" + pinDuration,
             pin: true,
             pinSpacing: true,
-            anticipatePin: 1,
-            scrub: 0.8,
+            scrub: 0.5,
             invalidateOnRefresh: true,
             onToggle: (self) => {
+              if (self.isActive && lenis) {
+                lenis.options.wheelMultiplier = 0.65;
+              }
               // 60fps performance optimization: only apply will-change while section is active
               cardRefs.current.forEach((cardEl) => {
                 if (cardEl) {
@@ -240,6 +264,24 @@ export function Universe() {
                 }
               });
             },
+          },
+        });
+
+        // Speed Ramp After Pin: Smoothly accelerate back from 0.65 to 1.0 upon exit
+        ScrollTrigger.create({
+          start: () => (masterTl.scrollTrigger ? masterTl.scrollTrigger.end : 0),
+          end: () => (masterTl.scrollTrigger ? masterTl.scrollTrigger.end : 0) + window.innerHeight * 0.4,
+          scrub: true,
+          onUpdate: (self) => {
+            if (!lenis) return;
+            const eased = 0.65 + 0.35 * Math.pow(self.progress, 1.2);
+            lenis.options.wheelMultiplier = eased;
+          },
+          onLeave: () => {
+            if (lenis) lenis.options.wheelMultiplier = 1.0;
+          },
+          onLeaveBack: () => {
+            if (lenis) lenis.options.wheelMultiplier = 0.65;
           },
         });
 
@@ -552,8 +594,13 @@ export function Universe() {
       });
     }, sectionRef);
 
-    return () => ctx.revert();
-  }, [prefersReducedMotion]);
+    return () => {
+      ctx.revert();
+      if (lenis) {
+        lenis.options.wheelMultiplier = 1.0;
+      }
+    };
+  }, [lenis, prefersReducedMotion]);
 
   return (
     <section

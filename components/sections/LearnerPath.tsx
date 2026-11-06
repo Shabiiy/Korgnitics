@@ -265,8 +265,8 @@ export function LearnerPath() {
       if (isInViewRef.current && !prefersReducedMotion) {
         const target = targetProgressRef.current;
         const current = lerpedProgressRef.current;
-        // Cinematic progress lerp smoothing (factor 0.12)
-        const nextProg = current + (target - current) * 0.12;
+        // Cinematic progress lerp smoothing (factor 0.14)
+        const nextProg = current + (target - current) * 0.14;
         lerpedProgressRef.current = nextProg;
 
         // 1. Draw frame if index changed
@@ -397,72 +397,44 @@ export function LearnerPath() {
         },
       });
 
-      // FIX 3: Gentle speed ramp ahead of pin (start "top bottom-=30%" to "top top")
+      // Master Timeline pinned for ~550vh (FIX 2: cinematic pin length)
+      const pinDuration = isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5;
+
+      // Speed Ramp Ahead of Pin: Smoothly decelerate scroll velocity as section approaches
+      // (Ramps wheelMultiplier 1.0 -> 0.65 across the viewport as the section enters)
       ScrollTrigger.create({
         trigger: container,
-        start: "top bottom-=30%",
+        start: "top bottom",
         end: "top top",
-        onEnter: () => {
-          if (lenis) {
-            gsap.to(lenis.options, {
-              wheelMultiplier: 0.75,
-              duration: 0.4,
-              ease: "power2.out",
-              overwrite: true,
-            });
-          }
+        scrub: true,
+        onUpdate: (self) => {
+          if (!lenis) return;
+          const eased = 1.0 - 0.35 * Math.pow(self.progress, 1.2);
+          lenis.options.wheelMultiplier = eased;
+        },
+        onLeave: () => {
+          if (lenis) lenis.options.wheelMultiplier = 0.65;
         },
         onLeaveBack: () => {
-          if (lenis) {
-            gsap.to(lenis.options, {
-              wheelMultiplier: 1.0,
-              duration: 0.4,
-              ease: "power2.out",
-              overwrite: true,
-            });
-          }
+          if (lenis) lenis.options.wheelMultiplier = 1.0;
         },
       });
 
-      // Matching speed ramp after pin exit
-      ScrollTrigger.create({
-        trigger: container,
-        start: () => "+=" + (isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5),
-        end: () => "+=" + ((isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5) + window.innerHeight * 0.3),
-        onLeave: () => {
-          if (lenis) {
-            gsap.to(lenis.options, {
-              wheelMultiplier: 1.0,
-              duration: 0.4,
-              ease: "power2.out",
-              overwrite: true,
-            });
-          }
-        },
-        onEnterBack: () => {
-          if (lenis) {
-            gsap.to(lenis.options, {
-              wheelMultiplier: 0.75,
-              duration: 0.4,
-              ease: "power2.out",
-              overwrite: true,
-            });
-          }
-        },
-      });
-
-      // Master Timeline pinned for ~550vh (FIX 2: cinematic pin length)
       const tl = gsap.timeline({
         scrollTrigger: {
           id: "journey-video",
           trigger: container,
           start: "top top",
-          end: () => "+=" + (isMobile ? window.innerHeight * 4 : window.innerHeight * 5.5),
+          end: () => "+=" + pinDuration,
           pin: true,
           pinSpacing: true,
-          anticipatePin: 1,
-          scrub: 0.6,
+          scrub: 0.5,
           invalidateOnRefresh: true,
+          onToggle: (self) => {
+            if (self.isActive && lenis) {
+              lenis.options.wheelMultiplier = 0.65;
+            }
+          },
           onUpdate: (self) => {
             const p = self.progress;
 
@@ -479,12 +451,8 @@ export function LearnerPath() {
               rawTarget = 1.0;
             }
 
-            // Cap per-frame scroll velocity so a hard wheel flick cannot skip frames instantly
-            const prev = prevTargetProgressRef.current;
-            const maxDelta = 0.20;
-            const clamped = Math.max(prev - maxDelta, Math.min(prev + maxDelta, rawTarget));
-            prevTargetProgressRef.current = clamped;
-            targetProgressRef.current = clamped;
+            // Continuous target progress without artificial locking/truncating
+            targetProgressRef.current = rawTarget;
 
             // Full-screen video mode: when p is between 0.16 and 0.84, video fills viewport (only logo visible)
             // When p < 0.16 or p > 0.84, video is in framed card state (navbar elements appear)
@@ -538,6 +506,24 @@ export function LearnerPath() {
           0.84
         );
       }
+
+      // Speed Ramp After Pin: Smoothly accelerate back from 0.65 to 1.0 upon exit
+      ScrollTrigger.create({
+        start: () => (tl.scrollTrigger ? tl.scrollTrigger.end : 0),
+        end: () => (tl.scrollTrigger ? tl.scrollTrigger.end : 0) + window.innerHeight * 0.4,
+        scrub: true,
+        onUpdate: (self) => {
+          if (!lenis) return;
+          const eased = 0.65 + 0.35 * Math.pow(self.progress, 1.2);
+          lenis.options.wheelMultiplier = eased;
+        },
+        onLeave: () => {
+          if (lenis) lenis.options.wheelMultiplier = 1.0;
+        },
+        onLeaveBack: () => {
+          if (lenis) lenis.options.wheelMultiplier = 0.65;
+        },
+      });
     }, container);
 
     return () => {

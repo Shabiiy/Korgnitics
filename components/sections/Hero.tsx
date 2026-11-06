@@ -34,7 +34,7 @@ export function Hero({ isReady = false }: HeroProps) {
 
   const isUiInteractableRef = useRef(false);
   const isReadyRef = useRef(isReady);
-  const { prefersReducedMotion } = useSmoothScroll();
+  const { lenis, prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     isReadyRef.current = isReady;
@@ -148,17 +148,23 @@ export function Hero({ isReady = false }: HeroProps) {
         ? "inset(12px 12px 12px 12px round 20px)"
         : "inset(20px 20px 20px 20px round 24px)";
 
+      const pinDuration = isMobile ? window.innerHeight * 1.2 : window.innerHeight * 1.5;
+
       // Master Timeline tied to ScrollTrigger (0 -> 1)
       const masterTl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: () => "+=" + (isMobile ? window.innerHeight * 1.2 : window.innerHeight * 1.5),
+          end: () => "+=" + pinDuration,
           pin: true,
           pinSpacing: true,
-          anticipatePin: 1,
-          scrub: 0.6,
+          scrub: 0.5,
           invalidateOnRefresh: true,
+          onToggle: (self) => {
+            if (self.isActive && lenis) {
+              lenis.options.wheelMultiplier = 0.65;
+            }
+          },
           onUpdate: (self) => {
             const p = self.progress;
             const canInteract = p >= 0.35;
@@ -288,12 +294,33 @@ export function Hero({ isReady = false }: HeroProps) {
           0.62
         );
       }
+
+      // Speed Ramp After Hero Pin: Smoothly accelerate from 0.65 to 1.0 upon exit
+      ScrollTrigger.create({
+        start: () => (masterTl.scrollTrigger ? masterTl.scrollTrigger.end : 0),
+        end: () => (masterTl.scrollTrigger ? masterTl.scrollTrigger.end : 0) + window.innerHeight * 0.4,
+        scrub: true,
+        onUpdate: (self) => {
+          if (!lenis) return;
+          const eased = 0.65 + 0.35 * Math.pow(self.progress, 1.2);
+          lenis.options.wheelMultiplier = eased;
+        },
+        onLeave: () => {
+          if (lenis) lenis.options.wheelMultiplier = 1.0;
+        },
+        onLeaveBack: () => {
+          if (lenis) lenis.options.wheelMultiplier = 0.65;
+        },
+      });
     }, containerRef);
 
     return () => {
       ctx.revert();
+      if (lenis) {
+        lenis.options.wheelMultiplier = 1.0;
+      }
     };
-  }, [prefersReducedMotion]);
+  }, [lenis, prefersReducedMotion]);
 
   return (
     <section
