@@ -162,7 +162,22 @@ export function Navbar() {
 
           {/* 2. Desktop Pill Navigation (Center) - Collapses in full-screen video modes */}
           <div className="nav-fullscreen-hide hidden lg:flex items-center mx-auto will-change-transform">
-            <nav className="flex items-center gap-1 bg-black/35 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 shadow-lg">
+            <nav
+              className="pointer-events-auto flex items-center gap-1 px-3 py-1.5 rounded-full transition-all duration-300"
+              style={{
+                backgroundColor: isDarkTheme
+                  ? "rgba(255, 255, 255, 0.14)"
+                  : "rgba(255, 255, 255, 0.55)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: isDarkTheme
+                  ? "1px solid rgba(255, 255, 255, 0.25)"
+                  : "1px solid rgba(37, 36, 90, 0.14)",
+                boxShadow: isDarkTheme
+                  ? "0 8px 32px 0 rgba(0, 0, 0, 0.18), inset 0 1px 0 0 rgba(255, 255, 255, 0.25)"
+                  : "0 8px 32px 0 rgba(37, 36, 90, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8)",
+              }}
+            >
               {navigationLinks.map((link) => {
                 const isActive = activeItem === link.label;
                 return (
@@ -173,7 +188,9 @@ export function Navbar() {
                     className={`relative px-3.5 py-1.5 text-[13px] font-sans tracking-tight transition-colors duration-200 z-10 ${
                       isActive
                         ? "text-indigo-deep font-medium"
-                        : "text-light-text/85 hover:text-white"
+                        : isDarkTheme
+                        ? "text-white/90 hover:text-white"
+                        : "text-indigo-deep/80 hover:text-indigo-deep"
                     }`}
                   >
                     {isActive && (
@@ -208,11 +225,19 @@ export function Navbar() {
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`lg:hidden p-2 rounded-full backdrop-blur-md transition-colors ${
-                isDarkTheme
-                  ? "bg-black/35 text-white border border-white/20 hover:bg-black/50"
-                  : "bg-indigo-deep text-white border border-indigo-deep/30 hover:bg-indigo-deep/90 shadow-sm"
-              }`}
+              className="lg:hidden p-2 rounded-full transition-all duration-300"
+              style={{
+                backgroundColor: isDarkTheme
+                  ? "rgba(255, 255, 255, 0.14)"
+                  : "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: isDarkTheme
+                  ? "1px solid rgba(255, 255, 255, 0.25)"
+                  : "1px solid rgba(37, 36, 90, 0.15)",
+                boxShadow: "0 4px 16px 0 rgba(0, 0, 0, 0.12)",
+                color: isDarkTheme ? "#FFFFFF" : "#25245A",
+              }}
               aria-label="Toggle mobile menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
