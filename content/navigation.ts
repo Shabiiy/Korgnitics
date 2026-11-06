@@ -6,8 +6,8 @@ export interface NavLink {
 export const navigationLinks: NavLink[] = [
   { label: "Home", href: "#hero" },
   { label: "Kognitics Universe", href: "#universe" },
-  { label: "Thinking Model", href: "#thinking-model" },
   { label: "Learning Journey", href: "#learner-path" },
+  { label: "Thinking Model", href: "#thinking-model" },
   { label: "Community Sphere", href: "#community-sphere" },
   { label: "Campus Lifespaces", href: "#campus-life" },
   { label: "Admissions", href: "#admissions" },
