@@ -112,6 +112,8 @@ export function Hero({ isReady = false }: HeroProps) {
         if (uiLayerRef.current) {
           gsap.set(uiLayerRef.current, { opacity: 1 });
         }
+        const header = document.querySelector("header");
+        if (header) header.classList.remove("fullscreen-video-mode");
         return;
       }
 
@@ -164,6 +166,17 @@ export function Hero({ isReady = false }: HeroProps) {
               isUiInteractableRef.current = canInteract;
               if (uiLayerRef.current) {
                 uiLayerRef.current.style.pointerEvents = canInteract ? "auto" : "none";
+              }
+            }
+
+            // Full-screen video mode: when p < 0.28, video is full screen (only logo visible)
+            // When p >= 0.28, video card shrinks into framed card and navbar elements appear
+            const header = document.querySelector("header");
+            if (header) {
+              if (p < 0.28) {
+                header.classList.add("fullscreen-video-mode");
+              } else {
+                header.classList.remove("fullscreen-video-mode");
               }
             }
           },

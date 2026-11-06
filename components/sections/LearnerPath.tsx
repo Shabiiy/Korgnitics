@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { learnerPathContent } from "@/content/learnerPath";
 import { TagChip } from "@/components/ui/TagChip";
-import { ChevronDown, Play, Pause, RotateCcw } from "lucide-react";
+import { ChevronDown, Play, Pause } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useSmoothScroll } from "@/components/providers/SmoothScrollProvider";
@@ -25,9 +25,7 @@ export function LearnerPath() {
   const stageMilestonesRef = useRef<HTMLDivElement | null>(null);
   const stageLabelsRef = useRef<(HTMLSpanElement | null)[]>([]);
   const segmentFillsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const replayBtnRef = useRef<HTMLDivElement | null>(null);
 
-  const [isReplaying, setIsReplaying] = useState(false);
   const [isPlayingManual, setIsPlayingManual] = useState(false);
 
   const { lenis, prefersReducedMotion } = useSmoothScroll();
@@ -39,7 +37,6 @@ export function LearnerPath() {
   const isMobileRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const isInViewRef = useRef(false);
-  const isReplayingRef = useRef(false);
   const preWarmStartedRef = useRef(false);
   const lastDrawnFrameRef = useRef(-1);
 
@@ -265,10 +262,7 @@ export function LearnerPath() {
     if (prefersReducedMotion) return;
 
     const tick = () => {
-      if (
-        (isInViewRef.current || isReplayingRef.current) &&
-        !prefersReducedMotion
-      ) {
+      if (isInViewRef.current && !prefersReducedMotion) {
         const target = targetProgressRef.current;
         const current = lerpedProgressRef.current;
         // Cinematic progress lerp smoothing (factor 0.12)
@@ -368,10 +362,6 @@ export function LearnerPath() {
 
       if (headerUiRef.current) {
         gsap.set(headerUiRef.current, { opacity: 1, y: 0 });
-      }
-
-      if (replayBtnRef.current) {
-        gsap.set(replayBtnRef.current, { opacity: 0, y: 16, pointerEvents: "none" });
       }
 
       // FIX 4: Pre-warm frames 2 viewports ahead of entry
@@ -474,7 +464,6 @@ export function LearnerPath() {
           scrub: 0.6,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
-            if (isReplayingRef.current) return;
             const p = self.progress;
 
             // Apply uniform inset clip-path
@@ -496,6 +485,25 @@ export function LearnerPath() {
             const clamped = Math.max(prev - maxDelta, Math.min(prev + maxDelta, rawTarget));
             prevTargetProgressRef.current = clamped;
             targetProgressRef.current = clamped;
+
+            // Full-screen video mode: when p is between 0.16 and 0.84, video fills viewport (only logo visible)
+            // When p < 0.16 or p > 0.84, video is in framed card state (navbar elements appear)
+            const header = document.querySelector("header");
+            if (header) {
+              if (p >= 0.16 && p <= 0.84) {
+                header.classList.add("fullscreen-video-mode");
+              } else {
+                header.classList.remove("fullscreen-video-mode");
+              }
+            }
+          },
+          onLeave: () => {
+            const header = document.querySelector("header");
+            if (header) header.classList.remove("fullscreen-video-mode");
+          },
+          onLeaveBack: () => {
+            const header = document.querySelector("header");
+            if (header) header.classList.remove("fullscreen-video-mode");
           },
         },
       });
@@ -530,150 +538,19 @@ export function LearnerPath() {
           0.84
         );
       }
-
-      // 4. Phase E (0.88 -> 1.00): Replay button fades in at end of shrink
-      if (replayBtnRef.current) {
-        tl.to(
-          replayBtnRef.current,
-          {
-            opacity: 1,
-            y: 0,
-            pointerEvents: "auto",
-            ease: "power2.out",
-            duration: 0.12,
-          },
-          0.88
-        );
-      }
     }, container);
 
     return () => {
       ctx.revert();
       const st = ScrollTrigger.getById("journey-video");
       if (st) st.kill(true);
+      const header = document.querySelector("header");
+      if (header) header.classList.remove("fullscreen-video-mode");
       if (lenis) {
         lenis.options.wheelMultiplier = 1.0;
       }
     };
   }, [prefersReducedMotion, applyUniformClip, lenis, startPrewarming]);
-
-  // -------------------------------------------------------------
-  // Phase E: Replay flow advancing frames at 24fps
-  // -------------------------------------------------------------
-  const handleReplayClick = useCallback(async () => {
-    const container = containerRef.current;
-    const wrapper = wrapperRef.current;
-    if (!container || !wrapper || isReplayingRef.current) return;
-
-    setIsReplaying(true);
-    isReplayingRef.current = true;
-
-    // 1. Lock user scroll with Lenis only after button click (FIX 1 exception)
-    if (lenis) {
-      lenis.stop();
-    }
-
-    // 2. Smooth-scroll back to section anchor
-    const st = ScrollTrigger.getById("journey-video");
-    const targetScroll = st ? st.start : container.offsetTop;
-
-    if (lenis) {
-      lenis.scrollTo(targetScroll, { duration: 1.2, immediate: false });
-    } else {
-      window.scrollTo({ top: targetScroll, behavior: "smooth" });
-    }
-
-    await new Promise((r) => setTimeout(r, 1200));
-
-    // 3. Expand edges to full screen again
-    gsap.to(wrapper, {
-      clipPath: "inset(0px round 0px)",
-      duration: 0.7,
-      ease: "power2.inOut",
-    });
-    if (headerUiRef.current) {
-      gsap.to(headerUiRef.current, { opacity: 0, duration: 0.3 });
-    }
-    if (replayBtnRef.current) {
-      gsap.to(replayBtnRef.current, { opacity: 0, pointerEvents: "none", duration: 0.3 });
-    }
-
-    await new Promise((r) => setTimeout(r, 700));
-
-    // 4. Advance frame index in real time at 24fps on the canvas
-    const startTime = performance.now();
-    const durationMs = (TOTAL_FRAMES / 24) * 1000;
-
-    await new Promise<void>((resolve) => {
-      const step = (now: number) => {
-        if (!isReplayingRef.current) {
-          resolve();
-          return;
-        }
-        const elapsed = now - startTime;
-        const prog = Math.min(1, elapsed / durationMs);
-
-        targetProgressRef.current = prog;
-        lerpedProgressRef.current = prog;
-        prevTargetProgressRef.current = prog;
-
-        const frameIdx = Math.min(TOTAL_FRAMES - 1, Math.floor(prog * TOTAL_FRAMES));
-        drawFrame(frameIdx);
-
-        // Update timeline bar fills
-        for (let i = 0; i < 4; i++) {
-          const fillEl = segmentFillsRef.current[i];
-          if (fillEl) {
-            const fill = Math.max(0, Math.min(1, prog * 4 - i));
-            fillEl.style.transform = `scaleX(${fill})`;
-          }
-        }
-
-        const stageIdx = Math.min(3, Math.floor(prog * 4));
-        if (stageIdx !== currentStageIdxRef.current) {
-          currentStageIdxRef.current = stageIdx;
-          updateStageCard(stageIdx);
-        }
-
-        if (elapsed < durationMs) {
-          requestAnimationFrame(step);
-        } else {
-          resolve();
-        }
-      };
-      requestAnimationFrame(step);
-    });
-
-    // 5. Shrink back into framed card
-    const isMobile = window.innerWidth < 768;
-    const finalInset = isMobile ? "inset(12px round 20px)" : "inset(20px round 24px)";
-
-    gsap.to(wrapper, {
-      clipPath: finalInset,
-      duration: 0.7,
-      ease: "power2.inOut",
-    });
-    if (headerUiRef.current) {
-      gsap.to(headerUiRef.current, { opacity: 1, duration: 0.5 });
-    }
-    if (replayBtnRef.current) {
-      gsap.to(replayBtnRef.current, {
-        opacity: 1,
-        pointerEvents: "auto",
-        duration: 0.5,
-        delay: 0.2,
-      });
-    }
-
-    await new Promise((r) => setTimeout(r, 750));
-
-    // 6. Unlock scroll
-    if (lenis) {
-      lenis.start();
-    }
-    setIsReplaying(false);
-    isReplayingRef.current = false;
-  }, [lenis, drawFrame, updateStageCard]);
 
   // Reduced motion manual play/pause
   const handleToggleManualPlay = () => {
@@ -792,24 +669,8 @@ export function LearnerPath() {
             </div>
           </div>
 
-          {/* Bottom Area: Replay Button + 4-Step Continuous Timeline Bar (Part 3) */}
+          {/* Bottom Area: 4-Step Continuous Timeline Bar */}
           <div className="w-full flex flex-col gap-4 pointer-events-auto z-20">
-            {/* Replay Video Button */}
-            <div ref={replayBtnRef} className="flex justify-start">
-              <button
-                type="button"
-                onClick={handleReplayClick}
-                disabled={isReplaying}
-                aria-label="Replay student journey video"
-                className="group inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 bg-yellow-golden text-indigo-deep rounded-[8px] font-sans font-medium text-xs sm:text-sm tracking-tight shadow-xl hover:brightness-105 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-golden disabled:opacity-50"
-              >
-                <span>{isReplaying ? "Playing Journey..." : "Replay Video"}</span>
-                <span className="w-5 h-5 rounded-[4px] bg-indigo-deep text-yellow-golden flex items-center justify-center transition-transform group-hover:-rotate-90 duration-300">
-                  <RotateCcw className="w-3 h-3" />
-                </span>
-              </button>
-            </div>
-
             {/* 
               4-Step Timeline Bar:
               - Fill driven by transform: scaleX() from rAF lerped progress

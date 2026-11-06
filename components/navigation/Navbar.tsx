@@ -26,12 +26,10 @@ const SECTION_CONFIG = [
 
 export function Navbar() {
   const [activeItem, setActiveItem] = useState("Home");
-  const [isScrolled, setIsScrolled] = useState(false); // Controls nav pill & Apply Now fade-in
   const [isDarkTheme, setIsDarkTheme] = useState(true); // Controls logo swap (white vs indigo)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const activeItemRef = useRef("Home");
-  const isScrolledRef = useRef(false);
   const isDarkThemeRef = useRef(true);
   const scrollRafRef = useRef<number | null>(null);
 
@@ -45,13 +43,6 @@ export function Navbar() {
         scrollRafRef.current = null;
         const scrollY = window.scrollY;
         const viewportH = window.innerHeight;
-
-        // Phase 2 threshold: fade in Nav Pill and Apply Now
-        const scrolled = prefersReducedMotion || scrollY > 140;
-        if (scrolled !== isScrolledRef.current) {
-          isScrolledRef.current = scrolled;
-          setIsScrolled(scrolled);
-        }
 
         // Track active section and dark/light background
         const checkPoint = 160;
@@ -127,7 +118,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-40 px-4 sm:px-8 md:px-12 py-4 bg-transparent border-b border-transparent pointer-events-none">
+      <header className="fullscreen-video-mode fixed top-0 left-0 right-0 z-40 px-4 sm:px-8 md:px-12 py-4 bg-transparent border-b border-transparent pointer-events-none">
         <div className="w-full flex items-center justify-between">
           {/* 1. Logo (Left) - Always visible from scroll 0 */}
           <div className="flex items-center flex-shrink-0 pointer-events-auto">
@@ -169,8 +160,8 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* 2. Desktop Pill Navigation (Center) - Always visible and persistent */}
-          <div className="hidden lg:flex items-center mx-auto opacity-100 translate-y-0 pointer-events-auto">
+          {/* 2. Desktop Pill Navigation (Center) - Collapses in full-screen video modes */}
+          <div className="nav-fullscreen-hide hidden lg:flex items-center mx-auto will-change-transform">
             <nav className="flex items-center gap-1 bg-black/35 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 shadow-lg">
               {navigationLinks.map((link) => {
                 const isActive = activeItem === link.label;
@@ -199,8 +190,8 @@ export function Navbar() {
             </nav>
           </div>
 
-          {/* 3. Right CTA Button & Mobile Menu Toggle - Always visible and persistent */}
-          <div className="flex items-center gap-3 ml-auto opacity-100 translate-y-0 pointer-events-auto">
+          {/* 3. Right CTA Button & Mobile Menu Toggle - Collapses in full-screen video modes */}
+          <div className="nav-fullscreen-hide flex items-center gap-3 ml-auto will-change-transform">
             {/* Desktop Apply Now Button */}
             <div className="hidden sm:block">
               <MagneticButton
