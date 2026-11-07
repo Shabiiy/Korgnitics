@@ -11,7 +11,7 @@ export const heroContent = {
   ctaHref: "#universe",
   scrollCueText: "Scroll to explore",
   tagline: "Cognitive Excellence · Character · Future-Ready",
-  videoSrc: "/assets/hero-campus-optimized.mp4",
+  videoSrc: "/assets/hero-scroll.mp4",
   posterSrc: "/assets/hero-poster.webp",
 };
 
