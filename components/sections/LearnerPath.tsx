@@ -7,10 +7,11 @@ import { ChevronDown, Play, Pause } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useSmoothScroll } from "@/components/providers/SmoothScrollProvider";
+import { getJourneyFrames, preloadAllJourneyFrames, TOTAL_JOURNEY_FRAMES } from "@/lib/journeyFrames";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const TOTAL_FRAMES = 191;
+const TOTAL_FRAMES = TOTAL_JOURNEY_FRAMES;
 
 export function LearnerPath() {
   const containerRef = useRef<HTMLElement | null>(null);
@@ -32,12 +33,11 @@ export function LearnerPath() {
 
   // Frame cache and progressive loading refs
   const framesRef = useRef<(ImageBitmap | HTMLImageElement | null)[]>(
-    new Array(TOTAL_FRAMES).fill(null)
+    getJourneyFrames()
   );
   const isMobileRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const isInViewRef = useRef(false);
-  const preWarmStartedRef = useRef(false);
   const lastDrawnFrameRef = useRef(-1);
 
   // Scrub targets for rAF lerp loop (completely decoupled from React state)
@@ -144,86 +144,35 @@ export function LearnerPath() {
   }, []);
 
   // -------------------------------------------------------------
-  // Preload frames (FIX 4 - Pre-warm 2 viewports ahead)
+  // Ensure all frames are ready and draw initial frame 0
   // -------------------------------------------------------------
-  const startPrewarming = useCallback(() => {
-    if (preWarmStartedRef.current || isUnmountedRef.current) return;
-    preWarmStartedRef.current = true;
-
-    const mobile = window.innerWidth < 768;
-    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
-    const getPath = (idx: number) =>
-      `${framesDir}/frame_${String(idx + 1).padStart(4, "0")}.webp`;
-
-    const loadRemainingFrames = async () => {
-      const batchSize = 6;
-      for (let i = 1; i < TOTAL_FRAMES; i += batchSize) {
-        if (isUnmountedRef.current) break;
-        const batch: Promise<void>[] = [];
-
-        for (let j = i; j < Math.min(TOTAL_FRAMES, i + batchSize); j++) {
-          batch.push(
-            (async (index) => {
-              try {
-                const res = await fetch(getPath(index));
-                const blob = await res.blob();
-                const bmp = await createImageBitmap(blob);
-                if (!isUnmountedRef.current) {
-                  framesRef.current[index] = bmp;
-                }
-              } catch {
-                const img = new Image();
-                img.src = getPath(index);
-                img.onload = () => {
-                  if (!isUnmountedRef.current) {
-                    framesRef.current[index] = img;
-                  }
-                };
-              }
-            })(j)
-          );
-        }
-
-        await Promise.all(batch);
-      }
-    };
-
-    loadRemainingFrames();
-  }, []);
-
   useEffect(() => {
     isUnmountedRef.current = false;
-    const mobile = window.innerWidth < 768;
-    isMobileRef.current = mobile;
-    const framesDir = mobile ? "/journey-frames-sm" : "/journey-frames";
+    isMobileRef.current = window.innerWidth < 768;
 
-    const getPath = (idx: number) =>
-      `${framesDir}/frame_${String(idx + 1).padStart(4, "0")}.webp`;
+    // Connect to global frame store
+    framesRef.current = getJourneyFrames();
 
-    // 1. Immediately load frame 0 and pre-render before section arrives (FIX 4)
-    const firstImg = new Image();
-    firstImg.src = getPath(0);
-    firstImg.onload = async () => {
-      if (isUnmountedRef.current) return;
-      try {
-        const bmp = await createImageBitmap(firstImg);
-        framesRef.current[0] = bmp;
-      } catch {
-        framesRef.current[0] = firstImg;
-      }
+    // If frame 0 is already available, draw immediately
+    if (framesRef.current[0]) {
       drawFrame(0);
-    };
+    }
 
-    // Idle pre-warm fallback if user remains at top of page
-    const idleTimer = setTimeout(() => {
-      startPrewarming();
-    }, 1200);
+    // Fallback assurance: ensure full preload is active
+    preloadAllJourneyFrames().then(() => {
+      if (isUnmountedRef.current) return;
+      framesRef.current = getJourneyFrames();
+      if (lastDrawnFrameRef.current >= 0) {
+        drawFrame(lastDrawnFrameRef.current);
+      } else {
+        drawFrame(0);
+      }
+    });
 
     return () => {
       isUnmountedRef.current = true;
-      clearTimeout(idleTimer);
     };
-  }, [drawFrame, startPrewarming]);
+  }, [drawFrame]);
 
   // -------------------------------------------------------------
   // Canvas resize handler (DPR capped at 2)
@@ -364,13 +313,13 @@ export function LearnerPath() {
         gsap.set(headerUiRef.current, { opacity: 1, y: 0 });
       }
 
-      // FIX 4: Pre-warm frames 2 viewports ahead of entry
+      // Ensure frames are ready ahead of entry
       ScrollTrigger.create({
         trigger: container,
         start: "top bottom+=200%",
         once: true,
         onEnter: () => {
-          startPrewarming();
+          preloadAllJourneyFrames();
         },
       });
 
@@ -537,7 +486,7 @@ export function LearnerPath() {
         lenis.options.wheelMultiplier = 1.0;
       }
     };
-  }, [prefersReducedMotion, applyUniformClip, lenis, startPrewarming]);
+  }, [prefersReducedMotion, applyUniformClip, lenis]);
 
   // Reduced motion manual play/pause
   const handleToggleManualPlay = () => {
