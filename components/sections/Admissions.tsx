@@ -28,15 +28,10 @@ type EnquiryFormData = z.infer<typeof enquirySchema>;
 
 export function Admissions() {
   const containerRef = useRef<HTMLElement | null>(null);
-  const stepsRef = useRef<HTMLDivElement | null>(null);
-  const formCardRef = useRef<HTMLDivElement | null>(null);
-  const formLeftRef = useRef<HTMLDivElement | null>(null);
-  const formRightRef = useRef<HTMLDivElement | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const { prefersReducedMotion } = useSmoothScroll();
 
   const {
     register,
@@ -81,75 +76,10 @@ export function Admissions() {
     }
   };
 
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-
-    // 3 Step Cards directional reveal (Left, Center, Right)
-    if (stepsRef.current) {
-      const cards = Array.from(stepsRef.current.children);
-      cards.forEach((card, idx) => {
-        const xOffset = idx === 0 ? -40 : idx === 2 ? 40 : 0;
-        gsap.fromTo(
-          card,
-          { x: xOffset, y: 35, opacity: 0, scale: 0.95 },
-          {
-            x: 0,
-            y: 0,
-            opacity: 1,
-            scale: 1,
-            duration: 0.85,
-            delay: idx * 0.1,
-            ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 88%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      });
-    }
-
-    // Enquiry form card: Left pane from left, Right pane from right
-    if (formLeftRef.current && formRightRef.current) {
-      gsap.fromTo(
-        formLeftRef.current,
-        { x: -50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: formCardRef.current,
-            start: "top 82%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        formRightRef.current,
-        { x: 50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: formCardRef.current,
-            start: "top 82%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
-  }, [prefersReducedMotion]);
-
   return (
     <section id="admissions" ref={containerRef} className="py-20 px-3 sm:px-6 md:px-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
+      <div className="text-center max-w-3xl mx-auto mb-16 batch-reveal-text">
         <TagChip variant="cream" className="mb-4">
           {admissionsContent.sectionTag}
         </TagChip>
@@ -171,14 +101,15 @@ export function Admissions() {
       </div>
 
       {/* 3 Step Progression Cards */}
-      <div ref={stepsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        {admissionsContent.steps.map((step) => {
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {admissionsContent.steps.map((step, idx) => {
           const isIndigo = step.theme === "indigo";
+          const batchClass = idx === 0 ? "batch-card-left" : idx === 2 ? "batch-card-right" : "batch-reveal-text";
 
           return (
             <div
               key={step.number}
-              className={`rounded-kcard p-6 sm:p-8 flex flex-col justify-between border shadow-sm transition-transform duration-300 hover:-translate-y-1 ${
+              className={`rounded-kcard p-6 sm:p-8 flex flex-col justify-between border shadow-sm transition-transform duration-300 hover:-translate-y-1 ${batchClass} ${
                 isIndigo
                   ? "bg-indigo-deep text-light-text border-indigo"
                   : "bg-yellow-surface text-indigo-deep border-yellow-border"
@@ -236,15 +167,9 @@ export function Admissions() {
       </div>
 
       {/* Enquiry Form & Contact Information Card */}
-      <div
-        ref={formCardRef}
-        className="grid grid-cols-1 lg:grid-cols-12 rounded-kcard overflow-hidden border border-yellow-border shadow-xl bg-white/70 backdrop-blur-md"
-      >
-        {/* Left Information Pane (Deep Indigo) */}
-        <div
-          ref={formLeftRef}
-          className="lg:col-span-5 bg-indigo-deep text-light-text p-8 sm:p-12 flex flex-col justify-between"
-        >
+      <div className="grid grid-cols-1 lg:grid-cols-12 rounded-kcard overflow-hidden border border-yellow-border shadow-xl bg-white/70 backdrop-blur-md">
+        {/* Left Information Pane (Deep Indigo) - Slides from LEFT */}
+        <div className="lg:col-span-5 bg-indigo-deep text-light-text p-8 sm:p-12 flex flex-col justify-between batch-slide-left">
           <div>
             <TagChip variant="indigo" className="mb-4">
               Direct Contact
@@ -295,8 +220,8 @@ export function Admissions() {
           </div>
         </div>
 
-        {/* Right Form Pane */}
-        <div ref={formRightRef} className="lg:col-span-7 p-8 sm:p-12 bg-yellow-surface/50">
+        {/* Right Form Pane - Slides from RIGHT */}
+        <div className="lg:col-span-7 p-8 sm:p-12 bg-yellow-surface/50 batch-slide-right">
           {submitSuccess ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

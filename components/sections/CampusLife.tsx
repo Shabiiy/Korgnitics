@@ -13,52 +13,13 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function CampusLife() {
   const containerRef = useRef<HTMLElement | null>(null);
-  const headerLeftRef = useRef<HTMLDivElement | null>(null);
-  const headerRightRef = useRef<HTMLDivElement | null>(null);
   const cardsContainerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredCardId, setHoveredCardId] = useState<string>("learning-spaces");
   const [activeFilter, setActiveFilter] = useState("Clubs & Societies");
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
-    if (prefersReducedMotion || !containerRef.current) return;
-
-    // Header reveal from Left and Right
-    if (headerLeftRef.current && headerRightRef.current) {
-      gsap.fromTo(
-        headerLeftRef.current,
-        { x: -50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerLeftRef.current,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        headerRightRef.current,
-        { x: 50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerRightRef.current,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
-
-    if (!cardsContainerRef.current) return;
+    if (prefersReducedMotion || !cardsContainerRef.current) return;
 
     // Clip-path reveals from bottom (inset(100% 0 0 0) -> inset(0)) with inner scale 1.2 -> 1
     const cardElements = cardsContainerRef.current.querySelectorAll(".campus-card-reveal");
@@ -104,12 +65,12 @@ export function CampusLife() {
     <section id="campus-life" ref={containerRef} className="py-20 px-3 sm:px-6 md:px-8 max-w-7xl mx-auto">
       {/* Header with Left/Right Entrance */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-        <div ref={headerLeftRef}>
+        <div className="batch-slide-left">
           <TagChip variant="cream" className="mb-4">
             {campusLifeContent.sectionTag}
           </TagChip>
 
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep batch-reveal-text">
             {campusLifeContent.headingPart1}{" "}
             <span className="headline-accent text-yellow-golden font-serif italic">
               {campusLifeContent.headingAccentLetter}
@@ -118,7 +79,7 @@ export function CampusLife() {
           </h2>
         </div>
 
-        <div ref={headerRightRef} className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 batch-slide-right">
           <p className="max-w-md text-sm text-muted-text font-sans leading-relaxed">
             {campusLifeContent.intro}
           </p>

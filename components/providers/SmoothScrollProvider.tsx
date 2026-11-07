@@ -7,6 +7,11 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+if (typeof window !== "undefined") {
+  (window as any).gsap = gsap;
+  (window as any).ScrollTrigger = ScrollTrigger;
+}
+
 interface SmoothScrollContextType {
   lenis: Lenis | null;
   prefersReducedMotion: boolean;
@@ -55,6 +60,8 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
     setLenisInstance(lenis);
     if (typeof window !== "undefined") {
       (window as any).__lenis = lenis;
+      (window as any).ScrollTrigger = ScrollTrigger;
+      (window as any).gsap = gsap;
     }
 
     // Synchronize Lenis with GSAP ScrollTrigger

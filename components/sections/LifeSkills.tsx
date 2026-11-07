@@ -12,89 +12,17 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function LifeSkills() {
   const containerRef = useRef<HTMLElement | null>(null);
-  const headerLeftRef = useRef<HTMLDivElement | null>(null);
-  const headerRightRef = useRef<HTMLParagraphElement | null>(null);
-  const gridRef = useRef<HTMLDivElement | null>(null);
-  const { prefersReducedMotion } = useSmoothScroll();
-
-  useEffect(() => {
-    if (prefersReducedMotion || !containerRef.current) return;
-
-    // Header reveal from Left & Right
-    if (headerLeftRef.current && headerRightRef.current) {
-      gsap.fromTo(
-        headerLeftRef.current,
-        { x: -50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerLeftRef.current,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        headerRightRef.current,
-        { x: 50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerRightRef.current,
-            start: "top 88%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
-
-    if (gridRef.current) {
-      const cards = Array.from(gridRef.current.children);
-
-      cards.forEach((card, idx) => {
-        // Alternating directional offset (Left, Center, Right)
-        const col = idx % 3;
-        const xOffset = col === 0 ? -40 : col === 2 ? 40 : 0;
-
-        gsap.fromTo(
-          card,
-          { x: xOffset, y: 35, opacity: 0, scale: 0.95 },
-          {
-            x: 0,
-            y: 0,
-            opacity: 1,
-            scale: 1,
-            duration: 0.85,
-            delay: idx * 0.08,
-            ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 90%",
-              toggleActions: "play none none none",
-            },
-          }
-        );
-      });
-    }
-  }, [prefersReducedMotion]);
 
   return (
     <section id="life-skills" ref={containerRef} className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
       {/* Header with Left/Right Entrance */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-        <div ref={headerLeftRef}>
+        <div className="batch-slide-left">
           <TagChip variant="cream" className="mb-4">
             {lifeSkillsContent.sectionTag}
           </TagChip>
 
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep batch-reveal-text">
             {lifeSkillsContent.headingPart1}{" "}
             <span className="block sm:inline">
               {lifeSkillsContent.headingPart2}{" "}
@@ -106,23 +34,21 @@ export function LifeSkills() {
           </h2>
         </div>
 
-        <p
-          ref={headerRightRef}
-          className="max-w-md text-sm sm:text-base text-muted-text font-sans leading-relaxed"
-        >
+        <p className="max-w-md text-sm sm:text-base text-muted-text font-sans leading-relaxed batch-slide-right">
           {lifeSkillsContent.subtext}
         </p>
       </div>
 
       {/* 3-Column Grid of 6 Alternating Cards */}
-      <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {lifeSkillsContent.cards.map((card) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {lifeSkillsContent.cards.map((card, idx) => {
           const isIndigo = card.theme === "indigo";
+          const batchClass = idx % 2 === 0 ? "batch-card-left" : "batch-card-right";
 
           return (
             <div
               key={card.id}
-              className={`group relative rounded-kcard p-6 sm:p-8 flex flex-col justify-between border shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1.5 hover:shadow-xl ${
+              className={`group relative rounded-kcard p-6 sm:p-8 flex flex-col justify-between border shadow-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1.5 hover:shadow-xl ${batchClass} ${
                 isIndigo
                   ? "bg-indigo-deep text-light-text border-indigo"
                   : "bg-yellow-surface text-indigo-deep border-yellow-border"

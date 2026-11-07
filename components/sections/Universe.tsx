@@ -244,6 +244,8 @@ export function Universe() {
         // Master Timeline pinned for ~250vh with 3 sequential segments (1.0 duration each)
         const masterTl = gsap.timeline({
           scrollTrigger: {
+            id: "universe-pin",
+            refreshPriority: 9,
             trigger: section,
             start: "top top",
             end: () => "+=" + pinDuration,

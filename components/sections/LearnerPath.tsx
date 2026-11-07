@@ -423,6 +423,7 @@ export function LearnerPath() {
       const tl = gsap.timeline({
         scrollTrigger: {
           id: "journey-video",
+          refreshPriority: 8,
           trigger: container,
           start: "top top",
           end: () => "+=" + pinDuration,

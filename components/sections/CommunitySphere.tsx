@@ -12,33 +12,12 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function CommunitySphere() {
   const containerRef = useRef<HTMLElement | null>(null);
-  const leftColRef = useRef<HTMLDivElement | null>(null);
-  const rowsRef = useRef<(HTMLDivElement | null)[]>([]);
   const bordersRef = useRef<(HTMLDivElement | null)[]>([]);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     if (prefersReducedMotion || !containerRef.current) return;
-
-    // Left Column reveals from the LEFT
-    if (leftColRef.current) {
-      gsap.fromTo(
-        leftColRef.current,
-        { x: -60, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: leftColRef.current,
-            start: "top 85%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
 
     // Draw borders left to right
     bordersRef.current.forEach((border) => {
@@ -58,39 +37,18 @@ export function CommunitySphere() {
         }
       );
     });
-
-    // Rows slide in from the RIGHT
-    rowsRef.current.forEach((row, idx) => {
-      if (!row) return;
-      gsap.fromTo(
-        row,
-        { x: 50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.75,
-          delay: idx * 0.08,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: row,
-            start: "top 92%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    });
   }, [prefersReducedMotion]);
 
   return (
     <section id="community-sphere" ref={containerRef} className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Left Column - Slides from LEFT */}
-        <div ref={leftColRef} className="lg:col-span-5 lg:sticky lg:top-28">
+        <div className="lg:col-span-5 lg:sticky lg:top-28 batch-slide-left">
           <TagChip variant="cream" className="mb-4">
             {communityContent.sectionTag}
           </TagChip>
 
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep mb-6">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep mb-6 batch-reveal-text">
             <span>{communityContent.headingPart1}</span>
             <br />
             <span>
@@ -102,22 +60,19 @@ export function CommunitySphere() {
             </span>
           </h2>
 
-          <p className="text-base sm:text-lg text-muted-text font-sans leading-relaxed">
+          <p className="text-base sm:text-lg text-muted-text font-sans leading-relaxed batch-reveal-text">
             {communityContent.intro}
           </p>
         </div>
 
-        {/* Right Column: 4 Interactive Rows */}
-        <div className="lg:col-span-7 flex flex-col">
+        {/* Right Column: 4 Interactive Rows - Slides from RIGHT */}
+        <div className="lg:col-span-7 flex flex-col batch-slide-right">
           {communityContent.rows.map((row, idx) => {
             const isOpen = openIndex === idx;
 
             return (
               <div
                 key={row.number}
-                ref={(el) => {
-                  rowsRef.current[idx] = el;
-                }}
                 className="group relative"
               >
                 {/* Border line */}

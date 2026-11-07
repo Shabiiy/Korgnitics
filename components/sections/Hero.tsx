@@ -153,6 +153,8 @@ export function Hero({ isReady = false }: HeroProps) {
       // Master Timeline tied to ScrollTrigger (0 -> 1)
       const masterTl = gsap.timeline({
         scrollTrigger: {
+          id: "hero-pin",
+          refreshPriority: 10,
           trigger: containerRef.current,
           start: "top top",
           end: () => "+=" + pinDuration,

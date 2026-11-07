@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Preloader } from "@/components/ui/Preloader";
+
+gsap.registerPlugin(ScrollTrigger);
 import { Navbar } from "@/components/navigation/Navbar";
 import { Hero } from "@/components/sections/Hero";
 import { Universe } from "@/components/sections/Universe";
@@ -14,14 +18,27 @@ import { CommunitySphere } from "@/components/sections/CommunitySphere";
 import { CampusLife } from "@/components/sections/CampusLife";
 import { Admissions } from "@/components/sections/Admissions";
 import { ClosingCard } from "@/components/sections/ClosingCard";
+import { SiteWideReveals } from "@/components/animations/SiteWideReveals";
 
 export default function Home() {
   const [preloaderDone, setPreloaderDone] = useState(false);
+
+  useEffect(() => {
+    // Ensure all pinned spacers and triggers are sorted by document order and refreshed
+    const timer = setTimeout(() => {
+      ScrollTrigger.sort();
+      ScrollTrigger.refresh();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [preloaderDone]);
 
   return (
     <main className="relative min-h-screen bg-yellow-cream text-indigo-deep">
       {/* Preloader (< 1.2s) */}
       <Preloader onComplete={() => setPreloaderDone(true)} />
+
+      {/* Centralized cheap ScrollTrigger.batch directional reveals */}
+      <SiteWideReveals />
 
       {/* Persistent Navigation Bar (Stays throughout all sections) */}
       <Navbar />

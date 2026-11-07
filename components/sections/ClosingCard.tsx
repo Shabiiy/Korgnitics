@@ -35,42 +35,6 @@ export function ClosingCard() {
       { scale: 0.92, borderRadius: "48px" },
       { scale: 1.0, borderRadius: "24px", ease: "power2.out" }
     );
-
-    if (contentRef.current) {
-      gsap.fromTo(
-        contentRef.current,
-        { x: -40, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: contentRef.current,
-            start: "top 82%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
-
-    if (footerLinksRef.current) {
-      gsap.fromTo(
-        footerLinksRef.current,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: "cubic-bezier(0.22, 1, 0.36, 1)",
-          scrollTrigger: {
-            trigger: footerLinksRef.current,
-            start: "top 92%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
   }, [prefersReducedMotion]);
 
   return (
@@ -98,14 +62,16 @@ export function ClosingCard() {
           <TagChip variant="yellow">Admissions 2026–2027</TagChip>
         </div>
 
-        {/* Center Content */}
-        <div ref={contentRef} className="my-auto py-8 max-w-3xl">
+        {/* Center Content - Slides from LEFT */}
+        <div className="my-auto py-8 max-w-3xl batch-slide-left">
           <h2 className="text-4xl sm:text-6xl md:text-7xl font-sans font-light tracking-tightest leading-tight text-white mb-6">
             {footerContent.closingCard.headlinePrefix}{" "}
-            <span className="headline-accent text-yellow-golden font-serif italic">
-              {footerContent.closingCard.headlineAccentLetter}
+            <span className="inline-block whitespace-nowrap">
+              <span className="headline-accent text-yellow-golden font-serif italic">
+                {footerContent.closingCard.headlineAccentLetter}
+              </span>
+              {footerContent.closingCard.headlineSuffix}
             </span>
-            {footerContent.closingCard.headlineSuffix}
           </h2>
 
           <p className="text-base sm:text-xl text-light-text/90 font-sans font-normal leading-relaxed mb-8 max-w-2xl">
@@ -125,7 +91,7 @@ export function ClosingCard() {
         </div>
 
         {/* Bottom Section: Footer Grid & Logo */}
-        <div ref={footerLinksRef} className="pt-12 border-t border-white/15">
+        <div className="pt-12 border-t border-white/15 batch-reveal-text">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 text-sm font-sans">
             {/* Col 1 */}
             <div>

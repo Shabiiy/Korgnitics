@@ -12,33 +12,12 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function WhyKognitics() {
   const containerRef = useRef<HTMLElement | null>(null);
-  const leftColRef = useRef<HTMLDivElement | null>(null);
-  const rowsRef = useRef<(HTMLDivElement | null)[]>([]);
   const bordersRef = useRef<(HTMLDivElement | null)[]>([]);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const { prefersReducedMotion } = useSmoothScroll();
 
   useEffect(() => {
     if (prefersReducedMotion || !containerRef.current) return;
-
-    // Left Column slides in smoothly from the LEFT
-    if (leftColRef.current) {
-      gsap.fromTo(
-        leftColRef.current,
-        { x: -60, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: leftColRef.current,
-            start: "top 85%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    }
 
     // Border lines draw left to right (scaleX 0 -> 1)
     bordersRef.current.forEach((border) => {
@@ -58,39 +37,18 @@ export function WhyKognitics() {
         }
       );
     });
-
-    // Rows slide in smoothly from the RIGHT
-    rowsRef.current.forEach((row, idx) => {
-      if (!row) return;
-      gsap.fromTo(
-        row,
-        { x: 50, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.75,
-          delay: idx * 0.08,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: row,
-            start: "top 92%",
-            toggleActions: "play none none none",
-          },
-        }
-      );
-    });
   }, [prefersReducedMotion]);
 
   return (
     <section id="why-kognitics" ref={containerRef} className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Left Column (Sticky Intro) - Slides from LEFT */}
-        <div ref={leftColRef} className="lg:col-span-5 lg:sticky lg:top-28">
+        <div className="lg:col-span-5 lg:sticky lg:top-28 batch-slide-left">
           <TagChip variant="cream" className="mb-4">
             {whyKogniticsContent.sectionTag}
           </TagChip>
 
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep mb-6">
+          <h2 className="text-3xl sm:text-5xl md:text-6xl font-sans font-light tracking-tightest leading-tight text-indigo-deep mb-6 batch-reveal-text">
             <span>{whyKogniticsContent.headingPart1}</span>
             <br />
             <span>
@@ -102,22 +60,19 @@ export function WhyKognitics() {
             </span>
           </h2>
 
-          <p className="text-base sm:text-lg text-muted-text font-sans leading-relaxed">
+          <p className="text-base sm:text-lg text-muted-text font-sans leading-relaxed batch-reveal-text">
             {whyKogniticsContent.intro}
           </p>
         </div>
 
-        {/* Right Column: 7 Numbered Rows */}
-        <div className="lg:col-span-7 flex flex-col">
+        {/* Right Column: 7 Numbered Rows - Slides from RIGHT */}
+        <div className="lg:col-span-7 flex flex-col batch-slide-right">
           {whyKogniticsContent.reasons.map((reason, idx) => {
             const isExpanded = expandedIndex === idx;
 
             return (
               <div
                 key={reason.number}
-                ref={(el) => {
-                  rowsRef.current[idx] = el;
-                }}
                 className="group relative"
               >
                 {/* Border line drawing left to right */}
